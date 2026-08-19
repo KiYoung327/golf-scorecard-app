@@ -50,6 +50,7 @@
     box-shadow: var(--shadow);
   }
   .screen{ display:none; flex-direction:column; flex:1; padding-bottom: calc(24px + var(--safe-bottom)); }
+  #screen-play.screen{ padding-bottom:0; }
   .screen.active{ display:flex; }
 
   /* ---------- Shared ---------- */
@@ -132,7 +133,7 @@
 
   .hole-hero{ padding:16px; }
   .map-frame{
-    width:100%; aspect-ratio:4/3; border-radius:var(--radius-lg); overflow:hidden; position:relative;
+    width:100%; height:54vh; min-height:280px; overflow:hidden; position:relative;
     background: linear-gradient(160deg, var(--fairway-600), var(--fairway-900));
     box-shadow: var(--shadow);
   }
@@ -154,30 +155,43 @@
   .hole-info .stat .l{ font-size:11px; color:var(--ink-faint); text-transform:uppercase; letter-spacing:0.08em; margin-top:2px; }
   .hole-info .divider{ width:1px; background:var(--line); margin:2px 0; }
 
+  .score-putt-row{ display:flex; gap:10px; margin:6px 16px 0; align-items:stretch; }
   .score-panel{
-    margin:14px 16px 0; background:var(--card); border-radius:var(--radius-lg); padding:20px;
+    flex:1; background:var(--card); border-radius:9px; padding:6px 10px;
     box-shadow:var(--shadow); border:1px solid var(--line);
-    display:flex; flex-direction:column; align-items:center; gap:10px;
+    display:flex; flex-direction:column; align-items:center; gap:2px;
   }
-  .score-panel .cap{ font-size:12px; color:var(--ink-faint); text-transform:uppercase; letter-spacing:0.1em; font-weight:700;}
-  .stepper{ display:flex; align-items:center; gap:22px; }
+  .score-panel .cap{ font-size:9px; color:var(--ink-faint); text-transform:uppercase; letter-spacing:0.1em; font-weight:700;}
+  .stepper{ display:flex; align-items:center; gap:12px; }
   .step-btn{
-    width:52px; height:52px; border-radius:50%; background:var(--turf-100); color:var(--fairway-700);
-    font-size:26px; font-weight:700; display:flex; align-items:center; justify-content:center;
+    width:28px; height:28px; border-radius:50%; background:var(--turf-100); color:var(--fairway-700);
+    font-size:16px; font-weight:700; display:flex; align-items:center; justify-content:center;
   }
   .step-btn:active{ background:var(--fairway-500); color:#fff; }
   .score-display{
-    width:96px; height:96px; border-radius:50%; display:flex; align-items:center; justify-content:center;
-    font-family:'Roboto Mono'; font-size:42px; font-weight:700; position:relative; transition: all .15s ease;
-    border: 3px solid var(--line); color:var(--ink);
+    width:44px; height:44px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    font-family:'Roboto Mono'; font-size:19px; font-weight:700; position:relative; transition: all .15s ease;
+    border: 2px solid var(--line); color:var(--ink);
   }
-  .score-display.mark-birdie{ border-color: var(--birdie-gold); box-shadow: inset 0 0 0 3px rgba(180,135,44,0.15);}
-  .score-display.mark-eagle{ border-color: var(--birdie-gold); border-width:3px; box-shadow: inset 0 0 0 6px rgba(180,135,44,0.12);}
-  .score-display.mark-bogey{ border-radius:12px; border-color: var(--flag-red); }
+  .score-display.mark-birdie{ border-color: var(--birdie-gold); box-shadow: inset 0 0 0 2px rgba(180,135,44,0.15);}
+  .score-display.mark-eagle{ border-color: var(--birdie-gold); border-width:2px; box-shadow: inset 0 0 0 3px rgba(180,135,44,0.12);}
+  .score-display.mark-bogey{ border-radius:9px; border-color: var(--flag-red); }
   .score-display.mark-par{ border-color: var(--fairway-500); }
-  .score-note{ font-size:13px; color:var(--ink-soft); height:16px; font-weight:500; }
+  .putt-panel{
+    flex:1; background:var(--card); border-radius:9px; padding:6px 8px;
+    box-shadow:var(--shadow); border:1px solid var(--line);
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
+  }
+  .putt-panel .cap{ font-size:9px; color:var(--ink-faint); text-transform:uppercase; letter-spacing:0.08em; font-weight:700; }
+  .putt-stepper{ display:flex; align-items:center; gap:10px; }
+  .putt-btn{
+    width:26px; height:26px; border-radius:50%; background:var(--turf-100); color:var(--fairway-700);
+    font-size:15px; font-weight:700; display:flex; align-items:center; justify-content:center;
+  }
+  .putt-btn:active{ background:var(--fairway-500); color:#fff; }
+  .putt-display{ font-family:'Roboto Mono'; font-size:19px; font-weight:700; color:var(--ink); text-align:center; min-width:20px; }
 
-  .nav-row{ display:flex; gap:10px; padding:16px; }
+  .nav-row{ display:flex; gap:10px; padding:16px; padding-bottom:16px; }
   .nav-row .btn{ flex:1; }
 
   /* sticky footer */
@@ -191,7 +205,7 @@
   .totals-bar .t .l{ font-size:10px; color:rgba(255,255,255,0.55); text-transform:uppercase; letter-spacing:0.08em; margin-top:1px;}
 
   /* ---------- Scorecard summary ---------- */
-  .card-table{ margin:16px; background:var(--card); border-radius:var(--radius-lg); box-shadow:var(--shadow); border:1px solid var(--line); overflow:hidden; }
+  .card-table{ margin:16px; background:var(--card); border-radius:9px; box-shadow:var(--shadow); border:1px solid var(--line); overflow:hidden; }
   table{ width:100%; border-collapse:collapse; font-family:'Roboto Mono'; font-size:13px; }
   th,td{ text-align:center; padding:8px 2px; }
   thead th{ background:var(--fairway-700); color:#fff; font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:0.04em;}
@@ -448,14 +462,23 @@
       <span id="geo-status" style="font-size:12px; color:var(--ink-faint);"></span>
     </div>
 
-    <div class="score-panel">
-      <div class="cap">타수 입력</div>
-      <div class="stepper">
-        <button class="step-btn" onclick="changeScore(-1)">−</button>
-        <div class="score-display" id="score-display">-</div>
-        <button class="step-btn" onclick="changeScore(1)">+</button>
+    <div class="score-putt-row">
+      <div class="score-panel">
+        <div class="cap">타수 입력</div>
+        <div class="stepper">
+          <button class="step-btn" onclick="changeScore(-1)">−</button>
+          <div class="score-display" id="score-display">-</div>
+          <button class="step-btn" onclick="changeScore(1)">+</button>
+        </div>
       </div>
-      <div class="score-note" id="score-note"></div>
+      <div class="putt-panel">
+        <div class="cap">PUTT</div>
+        <div class="putt-stepper">
+          <button class="putt-btn" onclick="changePutt(-1)">−</button>
+          <div class="putt-display" id="putt-display">-</div>
+          <button class="putt-btn" onclick="changePutt(1)">+</button>
+        </div>
+      </div>
     </div>
 
     <div class="nav-row">
@@ -883,7 +906,7 @@ function beginRoundWithHoles(course, subCoursesChosen){
     });
   });
   const comboLabel = subCoursesChosen.map(s=>s.name).join(' + ');
-  round = { courseId: course.id, courseName: course.name, comboLabel, holes: flatHoles, scores:{} };
+  round = { courseId: course.id, courseName: course.name, comboLabel, holes: flatHoles, scores:{}, putts:{} };
   document.getElementById('play-course-name').textContent = `${course.name} · ${comboLabel}`;
   document.getElementById('sc-course-name').textContent = `${course.name} · ${comboLabel}`;
   renderHoleStrip();
@@ -940,6 +963,7 @@ function showHole(num){
   }
 
   updateScoreDisplay();
+  updatePuttDisplay();
   updateTotals();
 }
 
@@ -988,20 +1012,17 @@ function updateScoreDisplay(){
   const h = round.holes.find(x=>x.num===activeHole);
   const s = round.scores[activeHole];
   const disp = document.getElementById('score-display');
-  const note = document.getElementById('score-note');
   disp.className = 'score-display';
   if(s === undefined){
     disp.textContent = '-';
-    note.textContent = '';
     return;
   }
   disp.textContent = s;
   const diff = s - h.par;
-  if(diff <= -2){ disp.classList.add('mark-eagle'); note.textContent = '이글 이상 🦅'; }
-  else if(diff === -1){ disp.classList.add('mark-birdie'); note.textContent = '버디'; }
-  else if(diff === 0){ disp.classList.add('mark-par'); note.textContent = '파'; }
-  else if(diff === 1){ disp.classList.add('mark-bogey'); note.textContent = '보기'; }
-  else { disp.classList.add('mark-bogey'); note.textContent = `+${diff}`; }
+  if(diff <= -2){ disp.classList.add('mark-eagle'); }
+  else if(diff === -1){ disp.classList.add('mark-birdie'); }
+  else if(diff === 0){ disp.classList.add('mark-par'); }
+  else { disp.classList.add('mark-bogey'); }
 }
 
 /* ---------------- Save current GPS location as a hole's tee/second/green point ---------------- */
@@ -1059,6 +1080,19 @@ function changeScore(delta){
   document.getElementById('chip-'+activeHole).classList.add('done');
 }
 
+function updatePuttDisplay(){
+  const p = round.putts[activeHole];
+  document.getElementById('putt-display').textContent = p !== undefined ? p : '-';
+}
+function changePutt(delta){
+  let p = round.putts[activeHole];
+  if(p === undefined) p = 2;
+  else p += delta;
+  if(p < 0) p = 0;
+  round.putts[activeHole] = p;
+  updatePuttDisplay();
+}
+
 function changeHole(delta){
   const max = round.holes.length;
   let next = activeHole + delta;
@@ -1107,7 +1141,11 @@ function buildScorecard(){
     return `<td class="score-cell"><span class="${cls}">${s!==undefined?s:'-'}</span></td>`;
   }).join('') + `<td>${scores.reduce((a,b)=>a+(b||0),0)}</td>`;
 
-  table.innerHTML = `<thead><tr>${groupRow}</tr><tr>${theadHoles}</tr></thead><tbody><tr>${parRow}</tr><tr>${scoreRow}</tr></tbody>`;
+  let putts = holes.map(h=>round.putts[h.num]);
+  let puttRow = '<th>PUTT</th>' + putts.map(p=>`<td>${p!==undefined?p:'-'}</td>`).join('')
+    + `<td>${putts.reduce((a,b)=>a+(b||0),0)}</td>`;
+
+  table.innerHTML = `<thead><tr>${groupRow}</tr><tr>${theadHoles}</tr></thead><tbody><tr>${parRow}</tr><tr>${scoreRow}</tr><tr>${puttRow}</tr></tbody>`;
 }
 
 /* ---------------- Boot ---------------- */
