@@ -1,0 +1,1169 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="스코어">
+<title>골프 스코어카드</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --fairway-900:#132B1D;
+    --fairway-700:#25532F;
+    --fairway-600:#2F6B3B;
+    --fairway-500:#3F8A4E;
+    --turf-100:#EEF3E7;
+    --turf-50:#F7FAF3;
+    --card:#FFFFFF;
+    --sand:#D8C7A0;
+    --flag-red:#B23A2E;
+    --birdie-gold:#B4872C;
+    --ink:#17251C;
+    --ink-soft:#5C6E60;
+    --ink-faint:#93A398;
+    --line: rgba(19,43,29,0.12);
+    --shadow: 0 10px 30px rgba(19,43,29,0.14);
+    --radius-lg: 22px;
+    --radius-md: 14px;
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color: transparent;}
+  html,body{margin:0; padding:0; height:100%; background:var(--turf-100); overscroll-behavior:none;}
+  body{
+    font-family:'Inter',sans-serif;
+    color:var(--ink);
+    display:flex;
+    justify-content:center;
+  }
+  #app{
+    width:100%;
+    max-width:480px;
+    min-height:100vh;
+    background:var(--turf-50);
+    position:relative;
+    display:flex;
+    flex-direction:column;
+    box-shadow: var(--shadow);
+  }
+  .screen{ display:none; flex-direction:column; flex:1; padding-bottom: calc(24px + var(--safe-bottom)); }
+  .screen.active{ display:flex; }
+
+  /* ---------- Shared ---------- */
+  .disp{ font-family:'Barlow Condensed',sans-serif; text-transform:uppercase; letter-spacing:0.02em; }
+  .mono{ font-family:'Roboto Mono',monospace; font-variant-numeric: tabular-nums; }
+  h1,h2,h3{ margin:0; }
+  button{ font-family:inherit; border:none; cursor:pointer; }
+  .top-bar{
+    padding: calc(18px + var(--safe-top)) 20px 16px;
+    background: var(--fairway-700);
+    color:#fff;
+    position:relative;
+    overflow:hidden;
+  }
+  .top-bar::after{
+    content:"";
+    position:absolute; inset:0;
+    background:
+      radial-gradient(120px 120px at 88% -10%, rgba(255,255,255,0.10), transparent 60%),
+      repeating-linear-gradient(115deg, rgba(255,255,255,0.035) 0 2px, transparent 2px 26px);
+    pointer-events:none;
+  }
+  .top-bar .eyebrow{ font-size:12px; letter-spacing:0.14em; text-transform:uppercase; color:rgba(255,255,255,0.65); font-weight:600; margin-bottom:2px; }
+  .top-bar h1{ font-size:30px; font-weight:700; line-height:1.05; position:relative; }
+
+  /* ---------- Home screen ---------- */
+  #screen-home .body{ padding:20px; flex:1; display:flex; flex-direction:column; gap:14px; }
+  .section-label{ font-size:12px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:var(--ink-faint); margin: 6px 2px 0; }
+  .course-card{
+    background:var(--card);
+    border-radius:var(--radius-lg);
+    padding:18px 18px 16px;
+    box-shadow: var(--shadow);
+    display:flex; flex-direction:column; gap:10px;
+    border:1px solid var(--line);
+  }
+  .course-card .name{ font-family:'Barlow Condensed'; font-size:24px; font-weight:700; text-transform:uppercase; }
+  .course-meta{ display:flex; gap:14px; color:var(--ink-soft); font-size:13px; }
+  .course-meta b{ color:var(--ink); font-family:'Roboto Mono'; font-weight:600;}
+  .btn{
+    padding:14px 18px; border-radius:999px; font-weight:600; font-size:15px;
+    display:flex; align-items:center; justify-content:center; gap:8px;
+  }
+  .btn-primary{ background:var(--fairway-600); color:#fff; }
+  .btn-primary:active{ background:var(--fairway-700); }
+  .btn-ghost{ background:transparent; color:var(--fairway-700); border:1.5px solid var(--line); }
+  .btn-ghost:active{ background:var(--turf-100); }
+  .geo-pt-btn.captured{ background:var(--fairway-600); color:#fff; border-color:var(--fairway-600); }
+  .fab-row{ display:flex; gap:10px; }
+  .fab-row .btn{ flex:1; }
+  .empty-hint{ text-align:center; color:var(--ink-faint); font-size:13px; padding:10px 24px 4px; }
+
+  /* new course form */
+  .field{ display:flex; flex-direction:column; gap:6px; }
+  .field label{ font-size:12px; font-weight:600; color:var(--ink-soft); text-transform:uppercase; letter-spacing:0.06em; }
+  .field input, .field select{
+    border:1.5px solid var(--line); border-radius:12px; padding:12px 14px; font-size:16px;
+    font-family:'Inter'; background:#fff; color:var(--ink);
+  }
+  .field input:focus, .field select:focus{ outline:none; border-color:var(--fairway-500); }
+
+  /* ---------- Play screen ---------- */
+  .hole-strip{
+    display:flex; gap:6px; overflow-x:auto; padding:14px 14px 4px; background:var(--fairway-700);
+    -webkit-overflow-scrolling:touch;
+  }
+  .hole-strip::-webkit-scrollbar{ display:none; }
+  .hole-chip{
+    flex:0 0 auto; width:40px; height:44px; border-radius:10px;
+    background:rgba(255,255,255,0.08); color:rgba(255,255,255,0.75);
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    font-family:'Roboto Mono'; font-size:13px; font-weight:600; position:relative;
+  }
+  .hole-chip small{ font-size:9px; opacity:0.7; font-weight:500; }
+  .hole-chip.current{ background:#fff; color:var(--fairway-700); }
+  .hole-chip.done::before{
+    content:""; position:absolute; top:4px; right:4px; width:5px; height:5px; border-radius:50%;
+    background:var(--sand);
+  }
+
+  .hole-hero{ padding:16px; }
+  .map-frame{
+    width:100%; aspect-ratio:4/3; border-radius:var(--radius-lg); overflow:hidden; position:relative;
+    background: linear-gradient(160deg, var(--fairway-600), var(--fairway-900));
+    box-shadow: var(--shadow);
+  }
+  .map-frame iframe{ width:100%; height:100%; border:0; display:block; }
+  .map-frame .placeholder{
+    position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    color:rgba(255,255,255,0.85); gap:8px;
+  }
+  .map-frame .placeholder svg{ width:46px; height:46px; opacity:0.9; }
+  .map-frame .placeholder span{ font-size:12px; color:rgba(255,255,255,0.55); text-align:center; padding:0 30px; }
+  .hole-badge{
+    position:absolute; top:12px; left:12px; background:rgba(19,43,29,0.55); backdrop-filter: blur(6px);
+    color:#fff; padding:6px 12px; border-radius:999px; font-family:'Barlow Condensed'; font-size:15px; font-weight:700; letter-spacing:0.04em;
+  }
+
+  .hole-info{ display:flex; justify-content:space-between; padding:16px 4px 4px; }
+  .hole-info .stat{ text-align:center; flex:1; }
+  .hole-info .stat .v{ font-family:'Roboto Mono'; font-size:22px; font-weight:700; color:var(--fairway-700); }
+  .hole-info .stat .l{ font-size:11px; color:var(--ink-faint); text-transform:uppercase; letter-spacing:0.08em; margin-top:2px; }
+  .hole-info .divider{ width:1px; background:var(--line); margin:2px 0; }
+
+  .score-panel{
+    margin:14px 16px 0; background:var(--card); border-radius:var(--radius-lg); padding:20px;
+    box-shadow:var(--shadow); border:1px solid var(--line);
+    display:flex; flex-direction:column; align-items:center; gap:10px;
+  }
+  .score-panel .cap{ font-size:12px; color:var(--ink-faint); text-transform:uppercase; letter-spacing:0.1em; font-weight:700;}
+  .stepper{ display:flex; align-items:center; gap:22px; }
+  .step-btn{
+    width:52px; height:52px; border-radius:50%; background:var(--turf-100); color:var(--fairway-700);
+    font-size:26px; font-weight:700; display:flex; align-items:center; justify-content:center;
+  }
+  .step-btn:active{ background:var(--fairway-500); color:#fff; }
+  .score-display{
+    width:96px; height:96px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    font-family:'Roboto Mono'; font-size:42px; font-weight:700; position:relative; transition: all .15s ease;
+    border: 3px solid var(--line); color:var(--ink);
+  }
+  .score-display.mark-birdie{ border-color: var(--birdie-gold); box-shadow: inset 0 0 0 3px rgba(180,135,44,0.15);}
+  .score-display.mark-eagle{ border-color: var(--birdie-gold); border-width:3px; box-shadow: inset 0 0 0 6px rgba(180,135,44,0.12);}
+  .score-display.mark-bogey{ border-radius:12px; border-color: var(--flag-red); }
+  .score-display.mark-par{ border-color: var(--fairway-500); }
+  .score-note{ font-size:13px; color:var(--ink-soft); height:16px; font-weight:500; }
+
+  .nav-row{ display:flex; gap:10px; padding:16px; }
+  .nav-row .btn{ flex:1; }
+
+  /* sticky footer */
+  .totals-bar{
+    position:sticky; bottom:0; background:var(--fairway-900); color:#fff;
+    display:flex; padding: 12px 18px calc(12px + var(--safe-bottom));
+    box-shadow: 0 -6px 20px rgba(0,0,0,0.18);
+  }
+  .totals-bar .t{ flex:1; text-align:center; }
+  .totals-bar .t .v{ font-family:'Roboto Mono'; font-size:19px; font-weight:700; }
+  .totals-bar .t .l{ font-size:10px; color:rgba(255,255,255,0.55); text-transform:uppercase; letter-spacing:0.08em; margin-top:1px;}
+
+  /* ---------- Scorecard summary ---------- */
+  .card-table{ margin:16px; background:var(--card); border-radius:var(--radius-lg); box-shadow:var(--shadow); border:1px solid var(--line); overflow:hidden; }
+  table{ width:100%; border-collapse:collapse; font-family:'Roboto Mono'; font-size:13px; }
+  th,td{ text-align:center; padding:8px 2px; }
+  thead th{ background:var(--fairway-700); color:#fff; font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:0.04em;}
+  tbody tr:nth-child(even){ background: var(--turf-50); }
+  tbody th{ font-family:'Inter'; color:var(--ink-soft); font-weight:600; text-align:left; padding-left:12px; font-size:12px;}
+  td.score-cell span{ display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:6px; }
+  td.score-cell span.mark-birdie{ border-radius:50%; border:2px solid var(--birdie-gold); }
+  td.score-cell span.mark-eagle{ border-radius:50%; border:2px solid var(--birdie-gold); box-shadow: inset 0 0 0 2px rgba(180,135,44,0.2); }
+  td.score-cell span.mark-bogey{ border:2px solid var(--flag-red); }
+  tfoot td{ font-weight:700; border-top:2px solid var(--line); padding-top:10px; }
+
+  .icon-btn{ background:rgba(255,255,255,0.12); color:#fff; width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:18px; }
+
+  /* ---------- Home banner (사용자 지정 이미지) ---------- */
+  .home-banner{
+    width:100%; height:33vh; min-height:170px; position:relative; overflow:hidden;
+    background: linear-gradient(160deg, var(--fairway-600), var(--fairway-900));
+    background-size:cover; background-position:center;
+    display:flex; align-items:flex-end;
+    box-shadow:var(--shadow); border:1px solid var(--line);
+  }
+  .home-banner .banner-placeholder{
+    position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px;
+    color:rgba(255,255,255,0.85);
+  }
+  .home-banner .banner-placeholder svg{ width:36px; height:36px; opacity:0.85; }
+  .home-banner .banner-placeholder span{ font-size:13px; color:rgba(255,255,255,0.6); }
+  .home-banner .banner-edit-btn{
+    position:absolute; top:12px; right:12px; z-index:2;
+    background:rgba(19,43,29,0.55); backdrop-filter:blur(6px); color:#fff;
+    padding:8px 14px; border-radius:999px; font-size:12px; font-weight:600;
+  }
+
+  .header-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ============ HOME ============ -->
+  <section class="screen active" id="screen-home">
+    <div class="top-bar" style="padding-bottom:14px;">
+      <div class="eyebrow">라운드 준비</div>
+      <h1>골프 스코어</h1>
+    </div>
+    <div class="body" style="padding-top:16px;">
+      <div class="home-banner" id="home-banner" onclick="pickBannerImage()">
+        <div class="banner-placeholder" id="banner-placeholder">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 16l4.5-6 3.5 4.5 2.5-3L20 16"/><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8" cy="8.5" r="1.3"/></svg>
+          <span>탭하여 사진 추가</span>
+        </div>
+        <button class="banner-edit-btn" id="banner-edit-btn" onclick="event.stopPropagation(); pickBannerImage()" style="display:none;">사진 변경</button>
+      </div>
+      <input type="file" id="banner-file-input" accept="image/*" style="display:none;" onchange="onBannerFileChosen(event)" />
+      <div class="section-label">내 코스</div>
+      <div id="course-list"></div>
+      <div class="fab-row">
+        <button class="btn btn-primary" onclick="openCoursePicker()">+ 코스 추가</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ COURSE PICKER (대한민국 골프장 목록) ============ -->
+  <section class="screen" id="screen-coursepicker">
+    <div class="top-bar">
+      <div class="header-row">
+        <div>
+          <div class="eyebrow">대한민국 골프장</div>
+          <h1>코스 선택</h1>
+        </div>
+        <button class="icon-btn" onclick="goto('home')">✕</button>
+      </div>
+      <input id="cp-search" oninput="renderCoursePicker()" placeholder="골프장 이름 검색"
+        style="margin-top:14px; width:100%; border:none; border-radius:12px; padding:12px 14px; font-size:15px; background:rgba(255,255,255,0.14); color:#fff;" />
+    </div>
+    <div id="cp-region-row" style="display:flex; gap:8px; overflow-x:auto; padding:12px 14px; -webkit-overflow-scrolling:touch;"></div>
+    <div class="body" style="padding:0 20px 8px; gap:10px;">
+      <div id="cp-list" style="display:flex; flex-direction:column; gap:8px;"></div>
+      <div class="empty-hint" style="padding:14px 4px;">찾는 골프장이 목록에 없나요?</div>
+      <button class="btn btn-ghost" onclick="goto('newcourse')">직접 코스 이름 입력하기</button>
+    </div>
+  </section>
+
+  <!-- ============ NEW COURSE (직접 입력) ============ -->
+  <section class="screen" id="screen-newcourse">
+    <div class="top-bar">
+      <div class="header-row">
+        <div>
+          <div class="eyebrow">새 코스</div>
+          <h1>코스 직접 입력</h1>
+        </div>
+        <button class="icon-btn" onclick="goto('home')">✕</button>
+      </div>
+    </div>
+    <div class="body" style="padding:20px; display:flex; flex-direction:column; gap:16px;">
+      <div class="field">
+        <label>코스 이름</label>
+        <input id="nc-name" placeholder="예: 남서울 컨트리클럽" />
+      </div>
+      <div class="empty-hint" style="text-align:left; padding:0;">다음 화면에서 9홀 코스 구성(예: 동·서코스)과 홀별 파·거리를 입력해요.</div>
+      <button class="btn btn-primary" onclick="createCourse()">다음</button>
+    </div>
+  </section>
+
+  <!-- ============ AUTOFILL CONFIRM (홀 정보 자동 채우기) ============ -->
+  <section class="screen" id="screen-autofill">
+    <div class="top-bar">
+      <div class="header-row">
+        <div>
+          <div class="eyebrow" id="af-course-name">코스</div>
+          <h1>홀 정보 자동 입력</h1>
+        </div>
+        <button class="icon-btn" onclick="goto('home')">✕</button>
+      </div>
+    </div>
+    <div class="body" style="padding:20px; display:flex; flex-direction:column; gap:14px;">
+      <div class="empty-hint" style="text-align:left; padding:0;">이 골프장은 홈페이지 코스 정보를 참고해 홀별 파·거리를 미리 준비해뒀어요. 확인하고 바로 추가할 수 있어요.</div>
+      <div id="af-summary" style="display:flex; flex-direction:column; gap:8px;"></div>
+      <button class="btn btn-primary" onclick="applyAutofill()">이 정보로 코스 추가</button>
+      <button class="btn btn-ghost" onclick="goto('subcount')">아니요, 직접 입력할게요</button>
+    </div>
+  </section>
+
+  <!-- ============ SUBCOURSE COUNT ============ -->
+  <section class="screen" id="screen-subcount">
+    <div class="top-bar">
+      <div class="header-row">
+        <div>
+          <div class="eyebrow" id="sub-count-course-name">코스</div>
+          <h1>코스 구성</h1>
+        </div>
+        <button class="icon-btn" onclick="goto('home')">✕</button>
+      </div>
+    </div>
+    <div class="body" style="padding:20px; display:flex; flex-direction:column; gap:16px;">
+      <div class="field">
+        <label>9홀 코스가 몇 개 있나요?</label>
+        <select id="sc-subcount">
+          <option value="1">1개 (9홀 코스)</option>
+          <option value="2" selected>2개 (18홀, 예: 동·서코스)</option>
+          <option value="3">3개 (27홀)</option>
+          <option value="4">4개 (36홀)</option>
+        </select>
+      </div>
+      <div class="empty-hint" style="text-align:left; padding:0;">골프장 대부분은 동/서/남/북 코스처럼 9홀 단위로 나뉘어 있어요. 라운드할 때 원하는 조합(예: 동+서)을 골라 18홀로 플레이할 수 있어요.</div>
+      <button class="btn btn-primary" onclick="startSubCourseFlow()">다음: 코스 이름 정하기</button>
+    </div>
+  </section>
+
+  <!-- ============ SUBCOURSE NAME ============ -->
+  <section class="screen" id="screen-subname">
+    <div class="top-bar">
+      <div class="header-row">
+        <div>
+          <div class="eyebrow" id="sub-name-course-name">코스</div>
+          <h1 id="sub-name-title">9홀 코스 이름</h1>
+        </div>
+        <button class="icon-btn" onclick="goto('home')">✕</button>
+      </div>
+    </div>
+    <div class="body" style="padding:20px; display:flex; flex-direction:column; gap:16px;">
+      <div class="field">
+        <label>이 9홀 코스의 이름</label>
+        <input id="sn-name" placeholder="예: 동코스" />
+      </div>
+      <button class="btn btn-primary" onclick="confirmSubName()">다음: 홀 정보 입력</button>
+    </div>
+  </section>
+
+  <!-- ============ HOLE SETUP ============ -->
+  <section class="screen" id="screen-holesetup">
+    <div class="top-bar">
+      <div class="header-row">
+        <div>
+          <div class="eyebrow" id="hs-course-name">코스</div>
+          <h1 id="hs-title">홀 정보</h1>
+        </div>
+        <button class="icon-btn" onclick="goto('home')">✕</button>
+      </div>
+    </div>
+    <div class="body" style="padding:20px; display:flex; flex-direction:column; gap:14px;">
+      <div class="field">
+        <label id="hs-hole-label">1번 홀 · 파</label>
+        <select id="hs-par">
+          <option value="3">파 3</option>
+          <option value="4" selected>파 4</option>
+          <option value="5">파 5</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>거리 (m)</label>
+        <input id="hs-meters" type="number" inputmode="numeric" placeholder="예: 352" />
+      </div>
+      <div class="field">
+        <label>위성사진 좌표 (선택, 위도·경도)</label>
+        <div style="display:flex; gap:8px;">
+          <input id="hs-lat" type="number" step="any" placeholder="위도" style="flex:1;" />
+          <input id="hs-lng" type="number" step="any" placeholder="경도" style="flex:1;" />
+        </div>
+      </div>
+      <button class="btn btn-primary" id="hs-next-btn" onclick="nextHoleSetup()">다음 홀</button>
+    </div>
+  </section>
+
+  <!-- ============ COMBO PICKER (라운드 시작 시 9홀 코스 조합 선택) ============ -->
+  <section class="screen" id="screen-combopicker">
+    <div class="top-bar">
+      <div class="header-row">
+        <div>
+          <div class="eyebrow" id="combo-course-name">코스</div>
+          <h1>코스 조합 선택</h1>
+        </div>
+        <button class="icon-btn" onclick="goto('home')">✕</button>
+      </div>
+    </div>
+    <div class="body" style="padding:20px; display:flex; flex-direction:column; gap:10px;">
+      <div class="section-label" style="margin-top:0;">플레이할 9홀 코스를 순서대로 선택하세요 (1~2개)</div>
+      <div id="combo-list" style="display:flex; flex-direction:column; gap:8px;"></div>
+      <button class="btn btn-primary" id="combo-start-btn" onclick="beginComboRound()" style="margin-top:8px;" disabled>라운드 시작</button>
+    </div>
+  </section>
+
+  <!-- ============ PLAY ============ -->
+  <section class="screen" id="screen-play">
+    <div class="top-bar" style="padding-bottom:0;">
+      <div class="header-row">
+        <div>
+          <div class="eyebrow" id="play-course-name">코스</div>
+          <h1>라운드</h1>
+        </div>
+        <button class="icon-btn" onclick="goto('home')">✕</button>
+      </div>
+    </div>
+    <div class="hole-strip" id="hole-strip"></div>
+
+    <div class="hole-hero">
+      <div class="map-frame" id="map-frame"></div>
+    </div>
+
+    <div class="hole-info">
+      <div class="stat"><div class="v" id="info-par">4</div><div class="l">Par</div></div>
+      <div class="divider"></div>
+      <div class="stat"><div class="v" id="info-meters">-</div><div class="l">M</div></div>
+      <div class="divider"></div>
+      <div class="stat"><div class="v" id="info-hole">1</div><div class="l">Hole</div></div>
+    </div>
+
+    <div style="padding:2px 16px 0; display:flex; gap:8px;">
+      <button class="btn btn-ghost geo-pt-btn" id="geo-btn-tee" style="flex:1; font-size:12px; padding:12px 6px;" onclick="saveCurrentLocationForHole('tee')">🏌️ 티샷</button>
+      <button class="btn btn-ghost geo-pt-btn" id="geo-btn-second" style="flex:1; font-size:12px; padding:12px 6px;" onclick="saveCurrentLocationForHole('second')">➡️ 세컨샷</button>
+      <button class="btn btn-ghost geo-pt-btn" id="geo-btn-green" style="flex:1; font-size:12px; padding:12px 6px;" onclick="saveCurrentLocationForHole('green')">🚩 그린</button>
+    </div>
+    <div style="padding:6px 16px 0; text-align:center;">
+      <span id="geo-status" style="font-size:12px; color:var(--ink-faint);"></span>
+    </div>
+
+    <div class="score-panel">
+      <div class="cap">타수 입력</div>
+      <div class="stepper">
+        <button class="step-btn" onclick="changeScore(-1)">−</button>
+        <div class="score-display" id="score-display">-</div>
+        <button class="step-btn" onclick="changeScore(1)">+</button>
+      </div>
+      <div class="score-note" id="score-note"></div>
+    </div>
+
+    <div class="nav-row">
+      <button class="btn btn-ghost" onclick="changeHole(-1)">← 이전 홀</button>
+      <button class="btn btn-primary" onclick="changeHole(1)">다음 홀 →</button>
+    </div>
+
+    <div class="totals-bar">
+      <div class="t"><div class="v" id="tot-thru">0/18</div><div class="l">진행</div></div>
+      <div class="t"><div class="v" id="tot-gross">0</div><div class="l">합계</div></div>
+      <div class="t"><div class="v" id="tot-topar">E</div><div class="l">파 대비</div></div>
+      <div class="t"><button class="icon-btn" onclick="goto('scorecard')" style="width:auto; padding:0 12px; border-radius:14px; font-size:12px;">카드</button></div>
+    </div>
+  </section>
+
+  <!-- ============ SCORECARD ============ -->
+  <section class="screen" id="screen-scorecard">
+    <div class="top-bar">
+      <div class="header-row">
+        <div>
+          <div class="eyebrow" id="sc-course-name">코스</div>
+          <h1>스코어카드</h1>
+        </div>
+        <button class="icon-btn" onclick="goto('play')">✕</button>
+      </div>
+    </div>
+    <div class="card-table">
+      <table id="sc-table"></table>
+    </div>
+    <div style="padding:0 16px;">
+      <button class="btn btn-ghost" style="width:100%;" onclick="goto('home')">홈으로</button>
+    </div>
+  </section>
+
+</div>
+
+<script>
+/* ---------------- Storage helper ----------------
+   Uses window.storage when available (Claude artifact link).
+   Falls back to localStorage automatically when this file is
+   downloaded/opened directly (window.storage not present or fails),
+   so course data still saves either way. */
+async function storageGet(key){
+  if(typeof window.storage !== 'undefined'){
+    try{
+      const res = await window.storage.get(key, false);
+      return res ? res.value : null;
+    }catch(e){ /* fall through to localStorage */ }
+  }
+  try{ return localStorage.getItem(key); }catch(e){ return null; }
+}
+async function storageSet(key, value){
+  if(typeof window.storage !== 'undefined'){
+    try{ await window.storage.set(key, value, false); return; }catch(e){ /* fall through */ }
+  }
+  try{ localStorage.setItem(key, value); }catch(e){ /* storage unavailable */ }
+}
+/* ---------------- Korea course directory (curated) ---------------- */
+const KR_COURSES = [{"id": "kr0", "name": "서서울CC", "region": "경기", "lat": 37.7312868, "lng": 126.8964342}, {"id": "kr1", "name": "뉴서울CC", "region": "경기", "lat": 37.4237441, "lng": 127.2095227}, {"id": "kr2", "name": "레이크사이드CC", "region": "경기", "lat": 37.3195517, "lng": 127.179116}, {"id": "kr3", "name": "뉴코리아CC", "region": "경기", "lat": 37.6650765, "lng": 126.8778654}, {"id": "kr4", "name": "캐슬렉스 골프클럽", "region": "경기", "lat": 37.4967566, "lng": 127.1690846}, {"id": "kr5", "name": "한양CC", "region": "경기", "lat": 37.6561073, "lng": 126.8555026}, {"id": "kr6", "name": "태릉CC", "region": "서울", "lat": 37.630245, "lng": 127.1092355}, {"id": "kr7", "name": "서원힐스CC", "region": "경기", "lat": 37.816601, "lng": 126.895252}, {"id": "kr8", "name": "지산CC", "region": "경기", "lat": 37.216084, "lng": 127.336528}, {"id": "kr9", "name": "88CC", "region": "경기", "lat": 37.3027597, "lng": 127.1667733}, {"id": "kr10", "name": "베어크리크GC 포천", "region": "경기", "lat": 37.904002, "lng": 127.280471}, {"id": "kr11", "name": "원더클럽 신라CC", "region": "경기", "lat": 37.3673631, "lng": 127.6964169}, {"id": "kr12", "name": "발리오스CC", "region": "경기", "lat": 37.115722, "lng": 126.8606704}, {"id": "kr13", "name": "아난티 코드GC", "region": "경기", "lat": 37.6197589, "lng": 127.4824313}, {"id": "kr14", "name": "자유CC", "region": "경기", "lat": 37.2086286, "lng": 127.5713727}, {"id": "kr15", "name": "남촌CC", "region": "경기", "lat": 37.3480694, "lng": 127.4154332}, {"id": "kr16", "name": "베어스베스트 청라GC", "region": "인천", "lat": 37.5444444, "lng": 126.6344444}, {"id": "kr17", "name": "인천그랜드CC", "region": "인천", "lat": 37.5137214, "lng": 126.6412277}, {"id": "kr18", "name": "드림파크CC", "region": "인천", "lat": 37.5728256, "lng": 126.6436309}, {"id": "kr19", "name": "잭니클라우스 GC 코리아", "region": "인천", "lat": 37.3799336, "lng": 126.6239746}, {"id": "kr20", "name": "인천국제CC", "region": "인천", "lat": 37.5618629, "lng": 126.6535847}, {"id": "kr21", "name": "인천송도파크GC", "region": "인천", "lat": 37.3974412, "lng": 126.6577557}, {"id": "kr22", "name": "오렌지듄스 영종GC", "region": "인천", "lat": 37.4346287, "lng": 126.4549592}, {"id": "kr23", "name": "원더클럽 듄스코스", "region": "인천", "lat": 37.4957886, "lng": 126.4609133}, {"id": "kr24", "name": "라데나GC", "region": "강원", "lat": 37.8411301, "lng": 127.7186555}, {"id": "kr25", "name": "제이드팰리스GC", "region": "강원", "lat": 37.8309146, "lng": 127.548482}, {"id": "kr26", "name": "필드로사이GC", "region": "강원", "lat": 37.5962372, "lng": 127.7164545}, {"id": "kr27", "name": "파인리지CC", "region": "강원", "lat": 38.250431, "lng": 128.5399365}, {"id": "kr28", "name": "메이플비치 골프앤리조트", "region": "강원", "lat": 37.7449393, "lng": 128.9676878}, {"id": "kr29", "name": "성문안CC", "region": "강원", "lat": 37.394391, "lng": 127.8349253}, {"id": "kr30", "name": "웰리힐리CC", "region": "강원", "lat": 37.4736599, "lng": 128.2339239}, {"id": "kr31", "name": "세이지우드CC", "region": "강원", "lat": 37.8860142, "lng": 128.1184971}, {"id": "kr32", "name": "더플레이어스GC", "region": "강원", "lat": 37.7775897, "lng": 127.7507917}, {"id": "kr33", "name": "동원썬밸리CC", "region": "강원", "lat": 37.4813167, "lng": 127.7912071}, {"id": "kr34", "name": "사우스링크 영암", "region": "전라", "lat": 34.7356893, "lng": 126.4283883}, {"id": "kr35", "name": "웨스트오션CC", "region": "전라", "lat": 35.355362, "lng": 126.41153}, {"id": "kr36", "name": "더나인GC", "region": "전라", "lat": 35.7954234, "lng": 127.0344679}, {"id": "kr37", "name": "다산베아체GC", "region": "전라", "lat": 34.5454996, "lng": 126.758866}, {"id": "kr38", "name": "해남 파인비치CC", "region": "전라", "lat": 34.6975595, "lng": 126.2612057}, {"id": "kr39", "name": "석정힐CC", "region": "전라", "lat": 35.4267144, "lng": 126.7389465}, {"id": "kr40", "name": "엘콜리안 영광CC", "region": "전라", "lat": 35.2948605, "lng": 126.5013815}, {"id": "kr41", "name": "파인힐스 골프앤호텔", "region": "전라", "lat": 35.0341366, "lng": 127.2721794}, {"id": "kr42", "name": "르오네뜨CC", "region": "전라", "lat": 35.2512742, "lng": 127.0983303}, {"id": "kr43", "name": "광주CC", "region": "전라", "lat": 35.3101401, "lng": 127.1699263}, {"id": "kr44", "name": "롯데스카이힐 제주CC", "region": "제주", "lat": 33.2871149, "lng": 126.4052324}, {"id": "kr45", "name": "엘리시안 제주CC", "region": "제주", "lat": 33.3723833, "lng": 126.3811418}, {"id": "kr46", "name": "나인브릿지", "region": "제주", "lat": 33.3418079, "lng": 126.4054915}, {"id": "kr47", "name": "제주 블랙스톤CC", "region": "제주", "lat": 33.3364519, "lng": 126.3110848}, {"id": "kr48", "name": "에코랜드GC", "region": "제주", "lat": 33.4565209, "lng": 126.6670479}, {"id": "kr49", "name": "테디밸리 골프앤리조트", "region": "제주", "lat": 33.2917697, "lng": 126.3482597}, {"id": "kr50", "name": "핀크스GC", "region": "제주", "lat": 33.3053535, "lng": 126.3937346}, {"id": "kr51", "name": "타므누 골프앤빌리지", "region": "제주", "lat": 33.3689588, "lng": 126.3505941}, {"id": "kr52", "name": "샤인빌파크CC", "region": "제주", "lat": 33.3454081, "lng": 126.7882015}, {"id": "kr53", "name": "제주해비치CC", "region": "제주", "lat": 33.3588381, "lng": 126.7281003}, {"id": "kr54", "name": "코리아퍼블릭CC", "region": "경기", "lat": 37.2235236, "lng": 127.1189654}, {"id": "kr55", "name": "태광CC", "region": "경기", "lat": 37.2850034, "lng": 127.0851421}, {"id": "kr56", "name": "블루원 용인CC", "region": "경기", "lat": 37.1341408, "lng": 127.3259239}, {"id": "kr57", "name": "서청퍼블릭GC", "region": "경기", "lat": 37.3623952, "lng": 127.1646854}, {"id": "kr58", "name": "스톤게이트CC", "region": "부산", "lat": 35.2837124, "lng": 129.2016495}, {"id": "kr59", "name": "태인CC 퍼블릭코스", "region": "전라", "lat": 35.673958, "lng": 126.9577725}, {"id": "kr60", "name": "한양파인스CC", "region": "경기", "lat": 37.6518167, "lng": 126.8634024}, {"id": "kr61", "name": "사우스케이프 오너스클럽", "region": "경상", "lat": 34.8374583, "lng": 128.0717862}, {"id": "kr62", "name": "한원CC", "region": "경기", "lat": 37.1573, "lng": 127.130583}, {"id": "kr63", "name": "제일CC", "region": "경기", "lat": 37.3257439, "lng": 126.866197}, {"id": "kr64", "name": "이포CC", "region": "경기", "lat": 37.3896498, "lng": 127.4983121}, {"id": "kr65", "name": "골드CC", "region": "경기", "lat": 37.2178599, "lng": 127.1373654}, {"id": "kr66", "name": "코리아CC", "region": "경기", "lat": 37.2192388, "lng": 127.1513372}, {"id": "kr67", "name": "자유로CC", "region": "경기", "lat": 37.9983617, "lng": 126.9489584}, {"id": "kr68", "name": "레인보우힐스CC", "region": "충청", "lat": 37.0275473, "lng": 127.6475141}, {"id": "kr69", "name": "진양베릴리CC", "region": "충청", "lat": 37.0337102, "lng": 127.4672369}, {"id": "kr70", "name": "TGV컨트리클럽", "region": "충청", "lat": 36.665459, "lng": 127.3190149}, {"id": "kr71", "name": "골프존카운티 화랑", "region": "충청", "lat": 36.8202418, "lng": 127.4707622}, {"id": "kr72", "name": "골프존카운티 진천", "region": "충청", "lat": 36.8184968, "lng": 127.405896}, {"id": "kr73", "name": "동촌골프클럽", "region": "충청", "lat": 37.056697, "lng": 127.7445388}, {"id": "kr74", "name": "클럽디 속리산", "region": "충청", "lat": 36.447164, "lng": 127.7819396}, {"id": "kr75", "name": "킹스데일GC", "region": "충청", "lat": 37.017854, "lng": 127.8166131}, {"id": "kr76", "name": "천룡CC", "region": "충청", "lat": 36.9473357, "lng": 127.3867008}, {"id": "kr77", "name": "코스카CC", "region": "충청", "lat": 36.9307533, "lng": 127.6208239}, {"id": "kr78", "name": "파인스톤CC", "region": "충청", "lat": 36.9648298, "lng": 126.6676533}, {"id": "kr79", "name": "현대해상 솔CC", "region": "충청", "lat": 36.6972054, "lng": 126.3241285}, {"id": "kr80", "name": "우정힐스컨트리클럽", "region": "충청", "lat": 36.7670484, "lng": 127.2214951}, {"id": "kr81", "name": "천안상록CC", "region": "충청", "lat": 36.7409454, "lng": 127.2834426}, {"id": "kr82", "name": "롯데스카이힐 부여CC", "region": "충청", "lat": 36.3037698, "lng": 126.9095332}, {"id": "kr83", "name": "프린세스골프클럽", "region": "충청", "lat": 36.6511993, "lng": 127.1166}, {"id": "kr84", "name": "도고CC", "region": "충청", "lat": 36.7777459, "lng": 126.8902998}, {"id": "kr85", "name": "SG아름다운GC", "region": "충청", "lat": 36.8463695, "lng": 126.9189233}, {"id": "kr86", "name": "파인허스트골프클럽", "region": "충청", "lat": 36.8417779, "lng": 127.0450371}, {"id": "kr87", "name": "로얄링스CC", "region": "충청", "lat": 36.7214065, "lng": 126.338451}, {"id": "kr88", "name": "세종필드GC", "region": "충청", "lat": 36.5357882, "lng": 127.2541377}, {"id": "kr89", "name": "세종에머슨컨트리클럽", "region": "충청", "lat": 36.6973629, "lng": 127.1763612}];
+
+/* ---------------- Known hole-by-hole data (from official course pages) ---------------- */
+const KR_COURSE_HOLE_DATA = {
+  "자유로CC": [
+    { name: "대한코스", pars: [5,4,3,4,4,3,4,5,4], meters: [528,367,185,319,409,168,414,534,429] },
+    { name: "민국코스", pars: [4,5,3,4,4,4,3,5,4], meters: [344,489,185,402,416,400,208,460,407] },
+    { name: "통일코스", pars: [5,4,3,5,4,4,3,4,4], meters: [494,404,173,552,425,318,205,348,381] }
+  ],
+  "동촌골프클럽": [
+    { name: "동코스", pars: [4,5,3,4,4,4,5,3,4], meters: [352,456,188,370,356,310,469,145,329] },
+    { name: "서코스", pars: [4,4,3,5,4,3,4,4,5], meters: [364,311,127,456,303,134,310,319,465] }
+  ]
+};
+
+/* ---------------- State ---------------- */
+let courses = [];
+let currentCourseId = null;
+let currentHoleIdx = 0;      // hole index (0-8) within the subcourse being edited
+let currentSubIdx = 0;       // subcourse index being edited
+let draftCourse = null;      // course being created: {id, name, subCourseCount, subCourses:[{name,holes:[9]}]}
+let round = null;            // {courseId, courseName, holes:[flat combined holes], scores:{num:strokes}}
+
+const STORE_KEY = 'courses';
+
+/* ---------------- Storage ---------------- */
+async function loadCourses(){
+  try{
+    const val = await storageGet(STORE_KEY);
+    courses = val ? JSON.parse(val) : [];
+  }catch(e){
+    courses = [];
+  }
+  courses = courses.map(migrateCourse);
+  if(courses.length === 0){
+    courses = [demoCourse()];
+    await saveCourses();
+  }
+  renderCourseList();
+}
+// Upgrades courses saved by an earlier version of the app (flat `holes`, no `subCourses`, no `hidden`)
+function migrateCourse(c){
+  if(c.hidden === undefined) c.hidden = false;
+  if(c.subCourses) return c;
+  const holes = c.holes || [];
+  const subCourses = [];
+  for(let i=0; i<holes.length; i+=9){
+    const chunk = holes.slice(i, i+9).map((h,j)=>({num:j+1, par:h.par, meters:h.meters!=null?h.meters:h.yards, lat:h.lat, lng:h.lng}));
+    subCourses.push({ name: subCourses.length===0 ? 'OUT' : 'IN', holes: chunk });
+  }
+  return { id:c.id, name:c.name, hidden:c.hidden, subCourses };
+}
+async function saveCourses(){
+  await storageSet(STORE_KEY, JSON.stringify(courses));
+}
+
+function demoCourse(){
+  const parsOut = [4,4,3,5,4,4,3,5,4];
+  const metersOut = [340,367,151,468,355,379,163,453,329];
+  const parsIn = [4,3,5,4,4,3,5,4,4];
+  const metersIn = [325,174,485,364,375,157,462,349,384];
+  return {
+    id: 'demo',
+    name: '데모 골프장 (연습용)',
+    subCourses: [
+      { name: 'OUT', holes: parsOut.map((p,i)=>({num:i+1, par:p, meters:metersOut[i], lat:null, lng:null})) },
+      { name: 'IN', holes: parsIn.map((p,i)=>({num:i+1, par:p, meters:metersIn[i], lat:null, lng:null})) }
+    ]
+  };
+}
+
+/* ---------------- Navigation ---------------- */
+function goto(screen){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById('screen-'+screen).classList.add('active');
+}
+
+/* ---------------- Home ---------------- */
+function renderCourseList(){
+  const wrap = document.getElementById('course-list');
+  wrap.innerHTML = '';
+  const visible = courses.filter(c=>!c.hidden);
+  const archived = courses.filter(c=>c.hidden);
+
+  if(archived.length > 0){
+    const toggle = document.createElement('button');
+    toggle.className = 'btn btn-ghost';
+    toggle.style.marginBottom = '4px';
+    toggle.textContent = archivedOpen ? `Round List 숨기기` : `Round List (${archived.length})`;
+    toggle.onclick = ()=>{ archivedOpen = !archivedOpen; renderCourseList(); };
+    wrap.appendChild(toggle);
+
+    if(archivedOpen){
+      archived.forEach(c=>{
+        const div = document.createElement('div');
+        div.className = 'course-card';
+        div.style.opacity = '0.7';
+        div.innerHTML = `
+          <div class="name">${c.name}</div>
+          <div class="course-meta"><span>홈 화면 목록에서 제거된 코스예요</span></div>
+          <button class="btn btn-ghost" onclick="restoreCourse('${c.id}')">목록에 다시 표시</button>
+        `;
+        wrap.appendChild(div);
+      });
+    }
+  }
+
+  if(visible.length === 0){
+    const hint = document.createElement('div');
+    hint.className = 'empty-hint';
+    hint.textContent = '아직 등록된 코스가 없어요. 코스를 추가해보세요.';
+    wrap.appendChild(hint);
+  }
+  visible.forEach(c=>{
+    const totalHoles = c.subCourses.reduce((a,s)=>a+s.holes.length,0);
+    const totalPar = c.subCourses.reduce((a,s)=>a+s.holes.reduce((x,h)=>x+h.par,0),0);
+    const subNames = c.subCourses.map(s=>s.name).join(' · ');
+    const div = document.createElement('div');
+    div.className = 'course-card';
+    if(pendingDeleteId === c.id){
+      div.innerHTML = `
+        <div class="name">${c.name}</div>
+        <div style="font-size:13px; color:var(--ink-soft); font-weight:500;">홈 화면 목록에서만 제거해요. 저장된 코스 정보와 라운드 기록은 남아있어요.</div>
+        <div style="display:flex; gap:8px;">
+          <button class="btn btn-ghost" style="flex:1;" onclick="cancelDeleteCourse()">취소</button>
+          <button class="btn" style="flex:1; background:var(--flag-red); color:#fff;" onclick="confirmDeleteCourse('${c.id}')">목록에서 제거</button>
+        </div>
+      `;
+    } else {
+      div.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
+          <div class="name">${c.name}</div>
+          <button onclick="askDeleteCourse('${c.id}')" title="목록에서 제거"
+            style="flex:0 0 auto; width:30px; height:30px; border-radius:50%; background:var(--turf-100); color:var(--flag-red); font-size:15px; display:flex; align-items:center; justify-content:center;">✕</button>
+        </div>
+        <div class="course-meta"><span>9홀 코스 <b>${subNames}</b></span></div>
+        <div class="course-meta"><span>총 홀 수 <b>${totalHoles}</b></span><span>파 합계 <b>${totalPar}</b></span></div>
+        <button class="btn btn-primary" onclick="startRound('${c.id}')">라운드 시작</button>
+      `;
+    }
+    wrap.appendChild(div);
+  });
+}
+let pendingDeleteId = null;
+let archivedOpen = false;
+function askDeleteCourse(id){
+  pendingDeleteId = id;
+  renderCourseList();
+}
+function cancelDeleteCourse(){
+  pendingDeleteId = null;
+  renderCourseList();
+}
+async function confirmDeleteCourse(id){
+  const course = courses.find(c=>c.id===id);
+  if(course) course.hidden = true;
+  pendingDeleteId = null;
+  await saveCourses();
+  renderCourseList();
+}
+async function restoreCourse(id){
+  const course = courses.find(c=>c.id===id);
+  if(course) course.hidden = false;
+  await saveCourses();
+  renderCourseList();
+}
+
+/* ---------------- Course picker (대한민국 골프장) ---------------- */
+let cpRegion = '전체';
+function openCoursePicker(){
+  document.getElementById('cp-search').value = '';
+  cpRegion = '전체';
+  renderRegionChips();
+  renderCoursePicker();
+  goto('coursepicker');
+}
+function renderRegionChips(){
+  const regions = ['전체', ...new Set(KR_COURSES.map(c=>c.region))];
+  const row = document.getElementById('cp-region-row');
+  row.innerHTML = '';
+  regions.forEach(r=>{
+    const chip = document.createElement('button');
+    chip.textContent = r;
+    chip.style.cssText = `flex:0 0 auto; padding:8px 16px; border-radius:999px; font-size:13px; font-weight:600; border:1.5px solid var(--line); background:${r===cpRegion?'var(--fairway-600)':'#fff'}; color:${r===cpRegion?'#fff':'var(--ink-soft)'};`;
+    chip.onclick = ()=>{ cpRegion = r; renderRegionChips(); renderCoursePicker(); };
+    row.appendChild(chip);
+  });
+}
+function renderCoursePicker(){
+  const q = document.getElementById('cp-search').value.trim().toLowerCase();
+  const list = document.getElementById('cp-list');
+  let items = KR_COURSES.filter(c => (cpRegion==='전체' || c.region===cpRegion) && (!q || c.name.toLowerCase().includes(q)));
+  items = items.slice().sort((a,b)=>a.name.localeCompare(b.name, 'ko'));
+  list.innerHTML = '';
+  if(items.length === 0){
+    list.innerHTML = '<div class="empty-hint">검색 결과가 없어요.</div>';
+    return;
+  }
+  items.forEach(c=>{
+    const row = document.createElement('div');
+    row.className = 'course-card';
+    row.style.padding = '14px 16px';
+    row.innerHTML = `<div style="display:flex; justify-content:space-between; align-items:center;">
+        <div><div style="font-family:'Barlow Condensed'; font-size:19px; font-weight:700;">${c.name}</div>
+        <div style="font-size:12px; color:var(--ink-faint); margin-top:2px;">${c.region}</div></div>
+        <span style="color:var(--fairway-600); font-size:22px;">›</span>
+      </div>`;
+    row.onclick = ()=>selectKRCourse(c);
+    list.appendChild(row);
+  });
+}
+function selectKRCourse(c){
+  draftCourse = { id: 'c'+Date.now(), name: c.name, krLat: c.lat, krLng: c.lng, subCourses: [] };
+  const autofill = KR_COURSE_HOLE_DATA[c.name];
+  if(autofill){
+    pendingAutofill = autofill;
+    document.getElementById('af-course-name').textContent = draftCourse.name;
+    const summary = document.getElementById('af-summary');
+    summary.innerHTML = autofill.map(s=>{
+      const totalPar = s.pars.reduce((a,b)=>a+b,0);
+      const totalM = s.meters.reduce((a,b)=>a+b,0);
+      return `<div class="course-card" style="padding:14px 16px;">
+        <div style="font-family:'Barlow Condensed'; font-size:19px; font-weight:700;">${s.name}</div>
+        <div class="course-meta"><span>Par <b>${totalPar}</b></span><span>거리 <b>${totalM}m</b></span></div>
+      </div>`;
+    }).join('');
+    goto('autofill');
+  } else {
+    document.getElementById('sub-count-course-name').textContent = draftCourse.name;
+    goto('subcount');
+  }
+}
+let pendingAutofill = null;
+async function applyAutofill(){
+  draftCourse.subCourses = pendingAutofill.map(s=>({
+    name: s.name,
+    holes: s.pars.map((p,i)=>({num:i+1, par:p, meters:s.meters[i], lat:draftCourse.krLat, lng:draftCourse.krLng}))
+  }));
+  courses.push(draftCourse);
+  await saveCourses();
+  renderCourseList();
+  draftCourse = null;
+  pendingAutofill = null;
+  goto('home');
+}
+
+/* ---------------- New course flow (직접 입력) ---------------- */
+function createCourse(){
+  const name = document.getElementById('nc-name').value.trim() || '이름 없는 코스';
+  draftCourse = { id: 'c'+Date.now(), name, krLat: null, krLng: null, subCourses: [] };
+  document.getElementById('sub-count-course-name').textContent = draftCourse.name;
+  goto('subcount');
+}
+
+/* ---------------- Subcourse setup flow ---------------- */
+const SUB_NAME_SUGGESTIONS = ['동코스','서코스','남코스','북코스'];
+function startSubCourseFlow(){
+  const n = parseInt(document.getElementById('sc-subcount').value, 10);
+  draftCourse.subCourseCount = n;
+  draftCourse.subCourses = [];
+  currentSubIdx = 0;
+  goToSubName();
+}
+function goToSubName(){
+  document.getElementById('sub-name-course-name').textContent = draftCourse.name;
+  document.getElementById('sub-name-title').textContent = `9홀 코스 이름 (${currentSubIdx+1}/${draftCourse.subCourseCount})`;
+  document.getElementById('sn-name').value = SUB_NAME_SUGGESTIONS[currentSubIdx] || `코스 ${currentSubIdx+1}`;
+  goto('subname');
+}
+function confirmSubName(){
+  const name = document.getElementById('sn-name').value.trim() || `코스 ${currentSubIdx+1}`;
+  draftCourse.subCourses[currentSubIdx] = {
+    name,
+    holes: Array.from({length:9}, (_,i)=>({num:i+1, par:4, meters:null, lat:draftCourse.krLat, lng:draftCourse.krLng}))
+  };
+  currentHoleIdx = 0;
+  document.getElementById('hs-course-name').textContent = `${draftCourse.name} · ${name}`;
+  fillHoleSetupForm();
+  goto('holesetup');
+}
+function fillHoleSetupForm(){
+  const h = draftCourse.subCourses[currentSubIdx].holes[currentHoleIdx];
+  document.getElementById('hs-hole-label').textContent = `${h.num}번 홀 · 파`;
+  document.getElementById('hs-title').textContent = `홀 정보 (${currentHoleIdx+1}/9)`;
+  document.getElementById('hs-par').value = h.par;
+  document.getElementById('hs-meters').value = h.meters || '';
+  document.getElementById('hs-lat').value = h.lat || '';
+  document.getElementById('hs-lng').value = h.lng || '';
+  const isLastHole = currentHoleIdx === 8;
+  const isLastSub = currentSubIdx === draftCourse.subCourseCount - 1;
+  document.getElementById('hs-next-btn').textContent = isLastHole ? (isLastSub ? '완료' : '다음 코스로') : '다음 홀';
+}
+async function nextHoleSetup(){
+  const h = draftCourse.subCourses[currentSubIdx].holes[currentHoleIdx];
+  h.par = parseInt(document.getElementById('hs-par').value, 10);
+  h.meters = document.getElementById('hs-meters').value ? parseInt(document.getElementById('hs-meters').value,10) : null;
+  const lat = document.getElementById('hs-lat').value, lng = document.getElementById('hs-lng').value;
+  h.lat = lat ? parseFloat(lat) : null;
+  h.lng = lng ? parseFloat(lng) : null;
+
+  if(currentHoleIdx < 8){
+    currentHoleIdx++;
+    fillHoleSetupForm();
+  } else if(currentSubIdx < draftCourse.subCourseCount - 1){
+    currentSubIdx++;
+    goToSubName();
+  } else {
+    courses.push(draftCourse);
+    await saveCourses();
+    renderCourseList();
+    draftCourse = null;
+    goto('home');
+  }
+}
+
+/* ---------------- Play ---------------- */
+let comboSelection = [];
+function startRound(courseId){
+  currentCourseId = courseId;
+  const course = courses.find(c=>c.id===courseId);
+  if(course.subCourses.length === 1){
+    beginRoundWithHoles(course, [course.subCourses[0]]);
+  } else {
+    comboSelection = [];
+    document.getElementById('combo-course-name').textContent = course.name;
+    renderComboList(course);
+    goto('combopicker');
+  }
+}
+function renderComboList(course){
+  const list = document.getElementById('combo-list');
+  list.innerHTML = '';
+  course.subCourses.forEach((s, idx)=>{
+    const row = document.createElement('div');
+    row.className = 'course-card';
+    row.style.padding = '14px 16px';
+    row.style.cursor = 'pointer';
+    const order = comboSelection.indexOf(idx);
+    row.innerHTML = `<div style="display:flex; justify-content:space-between; align-items:center;">
+        <div style="font-family:'Barlow Condensed'; font-size:19px; font-weight:700;">${s.name}</div>
+        <div class="step-btn" style="width:30px; height:30px; font-size:14px; background:${order>-1?'var(--fairway-500)':'var(--turf-100)'}; color:${order>-1?'#fff':'var(--fairway-700)'};">${order>-1?(order+1):''}</div>
+      </div>`;
+    row.onclick = ()=>{
+      const pos = comboSelection.indexOf(idx);
+      if(pos>-1){ comboSelection.splice(pos,1); }
+      else if(comboSelection.length < 2){ comboSelection.push(idx); }
+      renderComboList(course);
+      document.getElementById('combo-start-btn').disabled = comboSelection.length === 0;
+    };
+    list.appendChild(row);
+  });
+  document.getElementById('combo-start-btn').disabled = comboSelection.length === 0;
+}
+function beginComboRound(){
+  const course = courses.find(c=>c.id===currentCourseId);
+  const chosen = comboSelection.map(idx=>course.subCourses[idx]);
+  beginRoundWithHoles(course, chosen);
+}
+function beginRoundWithHoles(course, subCoursesChosen){
+  let flatHoles = [];
+  let num = 1;
+  subCoursesChosen.forEach(sub=>{
+    sub.holes.forEach(h=>{
+      flatHoles.push({ num: num++, par:h.par, meters:h.meters, lat:h.lat, lng:h.lng,
+        teeLat:h.teeLat, teeLng:h.teeLng, secondLat:h.secondLat, secondLng:h.secondLng, greenLat:h.greenLat, greenLng:h.greenLng,
+        courseLabel: sub.name, holeInSub: h.num });
+    });
+  });
+  const comboLabel = subCoursesChosen.map(s=>s.name).join(' + ');
+  round = { courseId: course.id, courseName: course.name, comboLabel, holes: flatHoles, scores:{} };
+  document.getElementById('play-course-name').textContent = `${course.name} · ${comboLabel}`;
+  document.getElementById('sc-course-name').textContent = `${course.name} · ${comboLabel}`;
+  renderHoleStrip();
+  showHole(1);
+  goto('play');
+}
+
+function renderHoleStrip(){
+  const strip = document.getElementById('hole-strip');
+  strip.innerHTML = '';
+  round.holes.forEach(h=>{
+    const chip = document.createElement('div');
+    chip.className = 'hole-chip';
+    chip.id = 'chip-'+h.num;
+    chip.innerHTML = `${h.num}<small>P${h.par}</small>`;
+    chip.onclick = ()=>showHole(h.num);
+    strip.appendChild(chip);
+  });
+}
+
+let activeHole = 1;
+function showHole(num){
+  const h = round.holes.find(x=>x.num===num);
+  if(!h) return;
+  activeHole = num;
+
+  document.querySelectorAll('.hole-chip').forEach(c=>c.classList.remove('current'));
+  document.getElementById('chip-'+num).classList.add('current');
+  document.getElementById('chip-'+num).scrollIntoView({inline:'center', behavior:'smooth', block:'nearest'});
+
+  document.getElementById('info-par').textContent = h.par;
+  document.getElementById('info-meters').textContent = h.meters || '-';
+  document.getElementById('info-hole').textContent = h.num;
+
+  ['tee','second','green'].forEach(key=>{
+    const btn = document.getElementById('geo-btn-'+key);
+    const has = h[key+'Lat'] && h[key+'Lng'];
+    btn.classList.toggle('captured', !!has);
+  });
+  const capturedCount = ['tee','second','green'].filter(k=>h[k+'Lat'] && h[k+'Lng']).length;
+  document.getElementById('geo-status').textContent = capturedCount>0 ? `${capturedCount}/3 지점 저장됨` : '';
+
+  const badgeText = `${h.courseLabel} ${h.holeInSub}번 · Par ${h.par}`;
+  const mapFrame = document.getElementById('map-frame');
+  const view = computeHoleMapView(h);
+  if(view){
+    mapFrame.innerHTML = `<div class="hole-badge">${badgeText}</div><iframe loading="lazy" src="https://maps.google.com/maps?q=${view.lat},${view.lng}&t=k&z=${view.zoom}&output=embed"></iframe>`;
+  } else {
+    mapFrame.innerHTML = `<div class="hole-badge">${badgeText}</div>
+      <div class="placeholder">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 21V4l11 4-11 4"/></svg>
+        <span>위성사진 좌표가 없어요. 아래 버튼으로 티샷·세컨샷·그린 위치를 저장하면 이 자리에 위성뷰가 표시돼요.</span>
+      </div>`;
+  }
+
+  updateScoreDisplay();
+  updateTotals();
+}
+
+// Builds the map center + zoom to show: a single saved point close-up,
+// or (with 2+ saved points) a wide-enough view to fit the whole hole.
+function computeHoleMapView(h){
+  const pts = ['tee','second','green']
+    .map(k=>({lat:h[k+'Lat'], lng:h[k+'Lng']}))
+    .filter(p=>p.lat && p.lng);
+  if(pts.length === 0){
+    if(h.lat && h.lng) return { lat:h.lat, lng:h.lng, zoom:18 }; // legacy/course-level single point
+    return null;
+  }
+  if(pts.length === 1){
+    return { lat:pts[0].lat, lng:pts[0].lng, zoom:18 };
+  }
+  // multiple points: center on the midpoint, pick zoom from the farthest pair distance
+  const avgLat = pts.reduce((a,p)=>a+p.lat,0)/pts.length;
+  const avgLng = pts.reduce((a,p)=>a+p.lng,0)/pts.length;
+  let maxDist = 0;
+  for(let i=0;i<pts.length;i++){
+    for(let j=i+1;j<pts.length;j++){
+      const d = haversineMeters(pts[i], pts[j]);
+      if(d > maxDist) maxDist = d;
+    }
+  }
+  let zoom;
+  if(maxDist < 100) zoom = 19;
+  else if(maxDist < 200) zoom = 18;
+  else if(maxDist < 350) zoom = 17;
+  else if(maxDist < 550) zoom = 16;
+  else if(maxDist < 800) zoom = 15;
+  else zoom = 14;
+  return { lat: avgLat, lng: avgLng, zoom };
+}
+function haversineMeters(a, b){
+  const R = 6371000;
+  const toRad = d => d * Math.PI / 180;
+  const dLat = toRad(b.lat - a.lat);
+  const dLng = toRad(b.lng - a.lng);
+  const s = Math.sin(dLat/2)**2 + Math.cos(toRad(a.lat))*Math.cos(toRad(b.lat))*Math.sin(dLng/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1-s));
+}
+
+function updateScoreDisplay(){
+  const h = round.holes.find(x=>x.num===activeHole);
+  const s = round.scores[activeHole];
+  const disp = document.getElementById('score-display');
+  const note = document.getElementById('score-note');
+  disp.className = 'score-display';
+  if(s === undefined){
+    disp.textContent = '-';
+    note.textContent = '';
+    return;
+  }
+  disp.textContent = s;
+  const diff = s - h.par;
+  if(diff <= -2){ disp.classList.add('mark-eagle'); note.textContent = '이글 이상 🦅'; }
+  else if(diff === -1){ disp.classList.add('mark-birdie'); note.textContent = '버디'; }
+  else if(diff === 0){ disp.classList.add('mark-par'); note.textContent = '파'; }
+  else if(diff === 1){ disp.classList.add('mark-bogey'); note.textContent = '보기'; }
+  else { disp.classList.add('mark-bogey'); note.textContent = `+${diff}`; }
+}
+
+/* ---------------- Save current GPS location as a hole's tee/second/green point ---------------- */
+const GEO_LABELS = { tee:'티샷', second:'세컨샷', green:'그린' };
+function saveCurrentLocationForHole(pointType){
+  const btn = document.getElementById('geo-btn-'+pointType);
+  const status = document.getElementById('geo-status');
+  if(!navigator.geolocation){
+    status.textContent = '이 브라우저는 위치 정보를 지원하지 않아요';
+    return;
+  }
+  const originalLabel = btn.textContent;
+  btn.textContent = '확인 중...';
+  btn.disabled = true;
+  navigator.geolocation.getCurrentPosition(
+    async (pos)=>{
+      const lat = pos.coords.latitude, lng = pos.coords.longitude;
+      const h = round.holes.find(x=>x.num===activeHole);
+      if(h){ h[pointType+'Lat'] = lat; h[pointType+'Lng'] = lng; }
+
+      // persist back into the saved course data so future rounds use it too
+      const course = courses.find(c=>c.id===round.courseId);
+      if(course && h){
+        const sub = course.subCourses.find(s=>s.name===h.courseLabel);
+        const savedHole = sub && sub.holes.find(x=>x.num===h.holeInSub);
+        if(savedHole){ savedHole[pointType+'Lat'] = lat; savedHole[pointType+'Lng'] = lng; }
+        await saveCourses();
+      }
+
+      btn.disabled = false;
+      btn.textContent = originalLabel;
+      showHole(activeHole);
+      status.textContent = `${GEO_LABELS[pointType]} 위치 저장됨 ✅`;
+      setTimeout(()=>{ if(status.textContent.includes('저장됨')) status.textContent = ''; }, 2000);
+    },
+    (err)=>{
+      btn.disabled = false;
+      btn.textContent = originalLabel;
+      status.textContent = err.code === 1 ? '위치 접근이 거부됐어요 (설정에서 허용해주세요)' : '위치를 가져오지 못했어요';
+      setTimeout(()=>{ status.textContent = ''; }, 2400);
+    },
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+  );
+}
+
+function changeScore(delta){
+  const h = round.holes.find(x=>x.num===activeHole);
+  let s = round.scores[activeHole];
+  if(s === undefined) s = h.par;
+  else s += delta;
+  if(s < 1) s = 1;
+  round.scores[activeHole] = s;
+  updateScoreDisplay();
+  updateTotals();
+  document.getElementById('chip-'+activeHole).classList.add('done');
+}
+
+function changeHole(delta){
+  const max = round.holes.length;
+  let next = activeHole + delta;
+  if(next < 1) next = 1;
+  if(next > max) next = max;
+  showHole(next);
+}
+
+function updateTotals(){
+  const played = Object.keys(round.scores).length;
+  const gross = Object.values(round.scores).reduce((a,b)=>a+b,0);
+  const parSoFar = round.holes.filter(h=>round.scores[h.num]!==undefined).reduce((a,h)=>a+h.par,0);
+  const toPar = gross - parSoFar;
+  document.getElementById('tot-thru').textContent = `${played}/${round.holes.length}`;
+  document.getElementById('tot-gross').textContent = gross;
+  document.getElementById('tot-topar').textContent = toPar===0 ? 'E' : (toPar>0? '+'+toPar : toPar);
+}
+
+/* ---------------- Scorecard summary ---------------- */
+function markClass(score, par){
+  if(score===undefined) return '';
+  const d = score - par;
+  if(d<=-2) return 'mark-eagle';
+  if(d===-1) return 'mark-birdie';
+  if(d>=1) return 'mark-bogey';
+  return '';
+}
+function buildScorecard(){
+  const table = document.getElementById('sc-table');
+  const holes = round.holes;
+
+  // group header row: one <th> per sub-course spanning its hole count
+  const groups = [];
+  holes.forEach(h=>{
+    const last = groups[groups.length-1];
+    if(last && last.label === h.courseLabel){ last.count++; } else { groups.push({label:h.courseLabel, count:1}); }
+  });
+  let groupRow = '<th></th>' + groups.map(g=>`<th colspan="${g.count}" style="font-size:11px;">${g.label}</th>`).join('') + '<th></th>';
+
+  let theadHoles = '<th>홀</th>' + holes.map(h=>`<th>${h.holeInSub}</th>`).join('') + '<th>계</th>';
+  let parRow = '<th>파</th>' + holes.map(h=>`<td>${h.par}</td>`).join('') + `<td>${holes.reduce((a,h)=>a+h.par,0)}</td>`;
+  let scores = holes.map(h=>round.scores[h.num]);
+  let scoreRow = '<th>스코어</th>' + holes.map((h,i)=>{
+    const s = scores[i];
+    const cls = markClass(s, h.par);
+    return `<td class="score-cell"><span class="${cls}">${s!==undefined?s:'-'}</span></td>`;
+  }).join('') + `<td>${scores.reduce((a,b)=>a+(b||0),0)}</td>`;
+
+  table.innerHTML = `<thead><tr>${groupRow}</tr><tr>${theadHoles}</tr></thead><tbody><tr>${parRow}</tr><tr>${scoreRow}</tr></tbody>`;
+}
+
+/* ---------------- Boot ---------------- */
+document.getElementById('screen-scorecard').addEventListener('transitionstart', ()=>{});
+const origGoto = goto;
+goto = function(screen){
+  origGoto(screen);
+  if(screen === 'scorecard') buildScorecard();
+};
+
+/* ---------------- Home banner image (사용자 지정 이미지) ---------------- */
+const BANNER_KEY = 'home-banner-image';
+async function loadBannerImage(){
+  try{
+    const val = await storageGet(BANNER_KEY);
+    if(val) applyBannerImage(val);
+  }catch(e){ /* no banner saved yet */ }
+}
+function applyBannerImage(dataUrl){
+  const banner = document.getElementById('home-banner');
+  const placeholder = document.getElementById('banner-placeholder');
+  const editBtn = document.getElementById('banner-edit-btn');
+  banner.style.backgroundImage = `url(${dataUrl})`;
+  placeholder.style.display = 'none';
+  editBtn.style.display = 'block';
+}
+function pickBannerImage(){
+  document.getElementById('banner-file-input').click();
+}
+function onBannerFileChosen(event){
+  const file = event.target.files && event.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    const img = new Image();
+    img.onload = async ()=>{
+      // downscale so the saved image stays small and fast to load
+      const maxW = 1200;
+      const scale = Math.min(1, maxW / img.width);
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width * scale;
+      canvas.height = img.height * scale;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+      applyBannerImage(dataUrl);
+      await storageSet(BANNER_KEY, dataUrl);
+    };
+    img.src = reader.result;
+  };
+  reader.readAsDataURL(file);
+  event.target.value = '';
+}
+
+loadCourses();
+loadBannerImage();
+</script>
+</body>
+</html>
