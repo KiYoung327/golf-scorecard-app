@@ -32,7 +32,7 @@
     --safe-bottom: env(safe-area-inset-bottom, 0px);
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color: transparent;}
-  html,body{margin:0; padding:0; height:100%; background:var(--turf-100); overscroll-behavior:none;}
+  html,body{margin:0; padding:0; height:100%; background:var(--turf-50); overscroll-behavior:none;}
   body{
     font-family:'Inter',sans-serif;
     color:var(--ink);
@@ -191,12 +191,12 @@
   .putt-btn:active{ background:var(--fairway-500); color:#fff; }
   .putt-display{ font-family:'Roboto Mono'; font-size:19px; font-weight:700; color:var(--ink); text-align:center; min-width:20px; }
 
-  .nav-row{ display:flex; gap:10px; padding:16px; padding-bottom:16px; }
+  .nav-row{ display:flex; gap:10px; padding:16px; padding-bottom:2px; }
   .nav-row .btn{ flex:1; }
 
   /* sticky footer */
   .totals-bar{
-    position:sticky; bottom:0; background:var(--fairway-900); color:#fff;
+    position:sticky; bottom:0; margin-top:auto; background:var(--fairway-900); color:#fff;
     display:flex; padding: 12px 18px calc(12px + var(--safe-bottom));
     box-shadow: 0 -6px 20px rgba(0,0,0,0.18);
   }
@@ -549,6 +549,10 @@ const KR_COURSE_HOLE_DATA = {
   "동촌골프클럽": [
     { name: "동코스", pars: [4,5,3,4,4,4,5,3,4], meters: [352,456,188,370,356,310,469,145,329] },
     { name: "서코스", pars: [4,4,3,5,4,3,4,4,5], meters: [364,311,127,456,303,134,310,319,465] }
+  ],
+  "베어크리크GC 포천": [
+    { name: "베어코스 아웃", pars: [4,3,4,5,4,3,4,5,4], meters: [324,144,336,481,336,149,323,468,303] },
+    { name: "베어코스 인", pars: [4,5,4,3,4,5,4,3,4], meters: [316,447,333,125,322,489,373,157,313] }
   ]
 };
 
