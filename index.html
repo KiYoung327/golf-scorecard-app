@@ -189,7 +189,10 @@
     font-size:15px; font-weight:700; display:flex; align-items:center; justify-content:center;
   }
   .putt-btn:active{ background:var(--fairway-500); color:#fff; }
-  .putt-display{ font-family:'Roboto Mono'; font-size:19px; font-weight:700; color:var(--ink); text-align:center; min-width:20px; }
+  .putt-display{ font-family:'Roboto Mono'; font-size:19px; font-weight:700; color:var(--ink); text-align:center; min-width:20px;
+    width:34px; height:34px; display:flex; align-items:center; justify-content:center; border:2px solid var(--line); border-radius:50%; transition: all .15s ease; }
+  .putt-display.mark-good{ border-color: var(--birdie-gold); box-shadow: inset 0 0 0 2px rgba(180,135,44,0.15); }
+  .putt-display.mark-bad{ border-radius:9px; border-color: var(--flag-red); }
 
   .nav-row{ display:flex; gap:10px; padding:16px; padding-bottom:2px; }
   .nav-row .btn{ flex:1; }
@@ -1114,7 +1117,13 @@ function changeScore(delta){
 
 function updatePuttDisplay(){
   const p = round.putts[activeHole];
-  document.getElementById('putt-display').textContent = p !== undefined ? p : '-';
+  const disp = document.getElementById('putt-display');
+  disp.className = 'putt-display';
+  disp.textContent = p !== undefined ? p : '-';
+  if(p !== undefined){
+    if(p < 2) disp.classList.add('mark-good');
+    else if(p > 2) disp.classList.add('mark-bad');
+  }
 }
 function changePutt(delta){
   let p = round.putts[activeHole];
@@ -1174,7 +1183,10 @@ function buildScorecard(){
   }).join('') + `<td>${scores.reduce((a,b)=>a+(b||0),0)}</td>`;
 
   let putts = holes.map(h=>round.putts[h.num]);
-  let puttRow = '<th>PUTT</th>' + putts.map(p=>`<td>${p!==undefined?p:'-'}</td>`).join('')
+  let puttRow = '<th>PUTT</th>' + putts.map(p=>{
+    const cls = p===undefined ? '' : (p<2 ? 'mark-birdie' : (p>2 ? 'mark-bogey' : ''));
+    return `<td class="score-cell"><span class="${cls}">${p!==undefined?p:'-'}</span></td>`;
+  }).join('')
     + `<td>${putts.reduce((a,b)=>a+(b||0),0)}</td>`;
 
   table.innerHTML = `<thead><tr>${groupRow}</tr><tr>${theadHoles}</tr></thead><tbody><tr>${parRow}</tr><tr>${scoreRow}</tr><tr>${puttRow}</tr></tbody>`;
