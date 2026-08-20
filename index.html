@@ -638,16 +638,29 @@ function renderCourseList(){
         const div = document.createElement('div');
         div.className = 'course-card';
         div.style.opacity = '0.7';
-        div.innerHTML = `
-          <div class="name">${c.name}</div>
-          <div class="course-meta"><span>홈 화면 목록에서 제거된 코스예요</span></div>
-          <button class="btn btn-ghost" onclick="restoreCourse('${c.id}')">목록에 다시 표시</button>
-        `;
+        if(pendingPermaDeleteId === c.id){
+          div.innerHTML = `
+            <div class="name">${c.name}</div>
+            <div style="font-size:13px; color:var(--flag-red); font-weight:600;">영구 삭제하면 코스 정보와 라운드 기록이 모두 사라지고 되돌릴 수 없어요.</div>
+            <div style="display:flex; gap:8px;">
+              <button class="btn btn-ghost" style="flex:1;" onclick="cancelPermaDelete()">취소</button>
+              <button class="btn" style="flex:1; background:var(--flag-red); color:#fff;" onclick="confirmPermaDelete('${c.id}')">영구 삭제</button>
+            </div>
+          `;
+        } else {
+          div.innerHTML = `
+            <div class="name">${c.name}</div>
+            <div class="course-meta"><span>홈 화면 목록에서 제거된 코스예요</span></div>
+            <div style="display:flex; gap:8px;">
+              <button class="btn btn-ghost" style="flex:1;" onclick="restoreCourse('${c.id}')">목록에 다시 표시</button>
+              <button class="btn btn-ghost" style="flex:1; color:var(--flag-red); border-color:var(--flag-red);" onclick="askPermaDelete('${c.id}')">영구 삭제</button>
+            </div>
+          `;
+        }
         wrap.appendChild(div);
       });
     }
   }
-
   if(visible.length === 0){
     const hint = document.createElement('div');
     hint.className = 'empty-hint';
@@ -685,6 +698,21 @@ function renderCourseList(){
   });
 }
 let pendingDeleteId = null;
+let pendingPermaDeleteId = null;
+function askPermaDelete(id){
+  pendingPermaDeleteId = id;
+  renderCourseList();
+}
+function cancelPermaDelete(){
+  pendingPermaDeleteId = null;
+  renderCourseList();
+}
+async function confirmPermaDelete(id){
+  courses = courses.filter(c=>c.id!==id);
+  pendingPermaDeleteId = null;
+  await saveCourses();
+  renderCourseList();
+}
 let archivedOpen = false;
 function askDeleteCourse(id){
   pendingDeleteId = id;
