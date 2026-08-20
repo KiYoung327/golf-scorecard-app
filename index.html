@@ -131,7 +131,18 @@
     background:var(--sand);
   }
 
-  .hole-hero{ padding:16px; }
+  .hole-hero{ padding:16px; position:relative; }
+  .map-nav-btn{
+    position:absolute; top:50%; transform:translateY(-50%); z-index:3;
+    width:46px; height:46px; border-radius:50%;
+    background:rgba(19,43,29,0.5); backdrop-filter:blur(6px);
+    color:#fff; display:flex; align-items:center; justify-content:center;
+    border:1.5px solid rgba(255,255,255,0.35);
+  }
+  .map-nav-btn svg{ width:22px; height:22px; }
+  .map-nav-btn:active{ background:rgba(19,43,29,0.75); }
+  .map-nav-btn.left{ left:28px; }
+  .map-nav-btn.right{ right:28px; }
   .map-frame{
     width:100%; height:54vh; min-height:280px; overflow:hidden; position:relative;
     background: linear-gradient(160deg, var(--fairway-600), var(--fairway-900));
@@ -155,7 +166,7 @@
   .hole-info .stat .l{ font-size:11px; color:var(--ink-faint); text-transform:uppercase; letter-spacing:0.08em; margin-top:2px; }
   .hole-info .divider{ width:1px; background:var(--line); margin:2px 0; }
 
-  .score-putt-row{ display:flex; gap:10px; margin:6px 16px 0; align-items:stretch; }
+  .score-putt-row{ display:flex; gap:10px; margin:6px 16px 15px; align-items:stretch; }
   .score-panel{
     flex:1; background:var(--card); border-radius:9px; padding:6px 10px;
     box-shadow:var(--shadow); border:1px solid var(--line);
@@ -190,7 +201,7 @@
   }
   .putt-btn:active{ background:var(--fairway-500); color:#fff; }
   .putt-display{ font-family:'Roboto Mono'; font-size:19px; font-weight:700; color:var(--ink); text-align:center; min-width:20px;
-    width:34px; height:34px; display:flex; align-items:center; justify-content:center; border:2px solid var(--line); border-radius:50%; transition: all .15s ease; }
+    width:44px; height:44px; display:flex; align-items:center; justify-content:center; border:2px solid var(--fairway-500); border-radius:50%; transition: all .15s ease; }
   .putt-display.mark-good{ border-color: var(--birdie-gold); box-shadow: inset 0 0 0 2px rgba(180,135,44,0.15); }
   .putt-display.mark-bad{ border-radius:9px; border-color: var(--flag-red); }
 
@@ -446,6 +457,12 @@
 
     <div class="hole-hero">
       <div class="map-frame" id="map-frame"></div>
+      <button class="map-nav-btn left" onclick="changeHole(-1)" aria-label="이전 홀">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
+      </button>
+      <button class="map-nav-btn right" onclick="changeHole(1)" aria-label="다음 홀">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>
+      </button>
     </div>
 
     <div class="hole-info">
@@ -484,10 +501,6 @@
       </div>
     </div>
 
-    <div class="nav-row">
-      <button class="btn btn-ghost" onclick="changeHole(-1)">← 이전 홀</button>
-      <button class="btn btn-primary" onclick="changeHole(1)">다음 홀 →</button>
-    </div>
 
     <div class="totals-bar">
       <div class="t"><div class="v" id="tot-thru">0/18</div><div class="l">진행</div></div>
@@ -504,6 +517,7 @@
         <div>
           <div class="eyebrow" id="sc-course-name">코스</div>
           <h1>스코어카드</h1>
+          <div id="sc-date" style="font-size:12px; color:rgba(255,255,255,0.65); margin-top:2px;"></div>
         </div>
         <button class="icon-btn" onclick="goto('play')">✕</button>
       </div>
@@ -941,7 +955,9 @@ function beginRoundWithHoles(course, subCoursesChosen){
     });
   });
   const comboLabel = subCoursesChosen.map(s=>s.name).join(' + ');
-  round = { courseId: course.id, courseName: course.name, comboLabel, holes: flatHoles, scores:{}, putts:{} };
+  const roundDate = new Date();
+  const dateLabel = `${roundDate.getFullYear()}.${String(roundDate.getMonth()+1).padStart(2,'0')}.${String(roundDate.getDate()).padStart(2,'0')} (${['일','월','화','수','목','금','토'][roundDate.getDay()]})`;
+  round = { courseId: course.id, courseName: course.name, comboLabel, dateLabel, holes: flatHoles, scores:{}, putts:{} };
   document.getElementById('play-course-name').textContent = `${course.name} · ${comboLabel}`;
   document.getElementById('sc-course-name').textContent = `${course.name} · ${comboLabel}`;
   renderHoleStrip();
@@ -1164,6 +1180,7 @@ function markClass(score, par){
 function buildScorecard(){
   const table = document.getElementById('sc-table');
   const holes = round.holes;
+  document.getElementById('sc-date').textContent = round.dateLabel || '';
 
   // group header row: one <th> per sub-course spanning its hole count
   const groups = [];
