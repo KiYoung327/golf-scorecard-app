@@ -524,9 +524,7 @@
         <button class="icon-btn" onclick="goto('play')">✕</button>
       </div>
     </div>
-    <div class="card-table">
-      <table id="sc-table"></table>
-    </div>
+    <div id="sc-tables"></div>
     <div style="padding:0 16px;">
       <button class="btn btn-ghost" style="width:100%;" onclick="goto('home')">홈으로</button>
     </div>
@@ -1180,35 +1178,52 @@ function markClass(score, par){
   return '';
 }
 function buildScorecard(){
-  const table = document.getElementById('sc-table');
+  const wrap = document.getElementById('sc-tables');
   const holes = round.holes;
   document.getElementById('sc-date').textContent = round.dateLabel || '';
 
-  // group header row: one <th> per sub-course spanning its hole count
+  // group consecutive holes by subcourse (each subcourse is 9 holes) so we can
+  // render one compact 9-column table per group instead of one wide 18+ column table
   const groups = [];
   holes.forEach(h=>{
     const last = groups[groups.length-1];
-    if(last && last.label === h.courseLabel){ last.count++; } else { groups.push({label:h.courseLabel, count:1}); }
+    if(last && last.label === h.courseLabel){ last.holes.push(h); } else { groups.push({label:h.courseLabel, holes:[h]}); }
   });
-  let groupRow = '<th></th>' + groups.map(g=>`<th colspan="${g.count}" style="font-size:11px;">${g.label}</th>`).join('') + '<th></th>';
 
-  let theadHoles = '<th>홀</th>' + holes.map(h=>`<th>${h.holeInSub}</th>`).join('') + '<th>계</th>';
-  let parRow = '<th>파</th>' + holes.map(h=>`<td>${h.par}</td>`).join('') + `<td>${holes.reduce((a,h)=>a+h.par,0)}</td>`;
-  let scores = holes.map(h=>round.scores[h.num]);
-  let scoreRow = '<th>스코어</th>' + holes.map((h,i)=>{
-    const s = scores[i];
-    const cls = markClass(s, h.par);
-    return `<td class="score-cell"><span class="${cls}">${s!==undefined?s:'-'}</span></td>`;
-  }).join('') + `<td>${scores.reduce((a,b)=>a+(b||0),0)}</td>`;
+  let html = '';
+  groups.forEach(g=>{
+    const gHoles = g.holes;
+    let theadHoles = '<th>홀</th>' + gHoles.map(h=>`<th>${h.holeInSub}</th>`).join('') + '<th>계</th>';
+    let parRow = '<th>파</th>' + gHoles.map(h=>`<td>${h.par}</td>`).join('') + `<td>${gHoles.reduce((a,h)=>a+h.par,0)}</td>`;
+    let scores = gHoles.map(h=>round.scores[h.num]);
+    let scoreRow = '<th>스코어</th>' + gHoles.map((h,i)=>{
+      const s = scores[i];
+      const cls = markClass(s, h.par);
+      return `<td class="score-cell"><span class="${cls}">${s!==undefined?s:'-'}</span></td>`;
+    }).join('') + `<td>${scores.reduce((a,b)=>a+(b||0),0)}</td>`;
+    let putts = gHoles.map(h=>round.putts[h.num]);
+    let puttRow = '<th>PUTT</th>' + putts.map(p=>{
+      const cls = p===undefined ? '' : (p<2 ? 'mark-birdie' : (p>2 ? 'mark-bogey' : ''));
+      return `<td class="score-cell"><span class="${cls}">${p!==undefined?p:'-'}</span></td>`;
+    }).join('') + `<td>${putts.reduce((a,b)=>a+(b||0),0)}</td>`;
 
-  let putts = holes.map(h=>round.putts[h.num]);
-  let puttRow = '<th>PUTT</th>' + putts.map(p=>{
-    const cls = p===undefined ? '' : (p<2 ? 'mark-birdie' : (p>2 ? 'mark-bogey' : ''));
-    return `<td class="score-cell"><span class="${cls}">${p!==undefined?p:'-'}</span></td>`;
-  }).join('')
-    + `<td>${putts.reduce((a,b)=>a+(b||0),0)}</td>`;
+    html += `<div class="section-label" style="margin:14px 16px 6px;">${g.label}</div>
+      <div class="card-table" style="margin-top:0;">
+        <table><thead><tr>${theadHoles}</tr></thead><tbody><tr>${parRow}</tr><tr>${scoreRow}</tr><tr>${puttRow}</tr></tbody></table>
+      </div>`;
+  });
 
-  table.innerHTML = `<thead><tr>${groupRow}</tr><tr>${theadHoles}</tr></thead><tbody><tr>${parRow}</tr><tr>${scoreRow}</tr><tr>${puttRow}</tr></tbody>`;
+  // overall round total across all groups
+  const totalPar = holes.reduce((a,h)=>a+h.par,0);
+  const totalScore = holes.reduce((a,h)=>a+(round.scores[h.num]||0),0);
+  const totalPutts = holes.reduce((a,h)=>a+(round.putts[h.num]||0),0);
+  html += `<div class="card-table" style="margin-top:0;">
+      <table><tbody>
+        <tr><th style="width:70px;">TOTAL</th><td>파 ${totalPar}</td><td>스코어 ${totalScore}</td><td>PUTT ${totalPutts}</td></tr>
+      </tbody></table>
+    </div>`;
+
+  wrap.innerHTML = html;
 }
 
 /* ---------------- Boot ---------------- */
