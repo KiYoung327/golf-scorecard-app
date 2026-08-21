@@ -249,12 +249,6 @@
   }
   .home-banner .banner-placeholder svg{ width:36px; height:36px; opacity:0.85; }
   .home-banner .banner-placeholder span{ font-size:13px; color:rgba(255,255,255,0.6); }
-  .home-banner .banner-edit-btn{
-    position:absolute; top:12px; right:12px; z-index:2;
-    background:rgba(19,43,29,0.55); backdrop-filter:blur(6px); color:#fff;
-    padding:8px 14px; border-radius:999px; font-size:12px; font-weight:600;
-  }
-
   .header-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
 </style>
 </head>
@@ -264,16 +258,25 @@
   <!-- ============ HOME ============ -->
   <section class="screen active" id="screen-home">
     <div class="top-bar" style="padding-bottom:14px;">
-      <div class="eyebrow">라운드 준비</div>
-      <h1>골프 스코어</h1>
+      <div class="header-row">
+        <div>
+          <div class="eyebrow">라운드 준비</div>
+          <h1>골프 스코어</h1>
+        </div>
+        <button class="icon-btn" onclick="pickBannerImage()" title="배경 사진 변경" aria-label="배경 사진 변경">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+        </button>
+      </div>
     </div>
     <div class="body" style="padding-top:16px;">
-      <div class="home-banner" id="home-banner" onclick="pickBannerImage()">
+      <div class="home-banner" id="home-banner">
         <div class="banner-placeholder" id="banner-placeholder">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 16l4.5-6 3.5 4.5 2.5-3L20 16"/><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8" cy="8.5" r="1.3"/></svg>
-          <span>탭하여 사진 추가</span>
+          <span>오른쪽 위 톱니바퀴에서 사진을 추가하세요</span>
         </div>
-        <button class="banner-edit-btn" id="banner-edit-btn" onclick="event.stopPropagation(); pickBannerImage()" style="display:none;">사진 변경</button>
       </div>
       <input type="file" id="banner-file-input" accept="image/*" style="display:none;" onchange="onBannerFileChosen(event)" />
       <div class="section-label">내 코스</div>
@@ -1245,10 +1248,8 @@ async function loadBannerImage(){
 function applyBannerImage(dataUrl){
   const banner = document.getElementById('home-banner');
   const placeholder = document.getElementById('banner-placeholder');
-  const editBtn = document.getElementById('banner-edit-btn');
   banner.style.backgroundImage = `url(${dataUrl})`;
   placeholder.style.display = 'none';
-  editBtn.style.display = 'block';
 }
 function pickBannerImage(){
   document.getElementById('banner-file-input').click();
