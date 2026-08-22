@@ -524,11 +524,12 @@
           <h1>스코어카드</h1>
           <div id="sc-date" style="font-size:12px; color:rgba(255,255,255,0.65); margin-top:2px;"></div>
         </div>
-        <button class="icon-btn" onclick="goto('play')">✕</button>
+        <button class="icon-btn" onclick="closeScorecard()">✕</button>
       </div>
     </div>
     <div id="sc-tables"></div>
-    <div style="padding:0 16px;">
+    <div style="padding:0 16px 16px;">
+      <button class="btn btn-primary" style="width:100%; margin-bottom:10px;" id="sc-save-btn" onclick="saveCurrentRound()">💾 스코어 저장</button>
       <button class="btn btn-ghost" style="width:100%;" onclick="goto('home')">홈으로</button>
     </div>
   </section>
@@ -585,6 +586,33 @@ let draftCourse = null;      // course being created: {id, name, subCourseCount,
 let round = null;            // {courseId, courseName, holes:[flat combined holes], scores:{num:strokes}}
 
 const STORE_KEY = 'courses';
+const HISTORY_KEY = 'roundHistory';
+let roundHistory = [];
+
+/* ---------------- Round history (completed/in-progress rounds with scores) ---------------- */
+async function loadRoundHistory(){
+  try{
+    const val = await storageGet(HISTORY_KEY);
+    roundHistory = val ? JSON.parse(val) : [];
+  }catch(e){ roundHistory = []; }
+}
+async function saveRoundHistory(){
+  await storageSet(HISTORY_KEY, JSON.stringify(roundHistory));
+}
+async function saveRoundToHistory(){
+  if(!round) return;
+  const idx = roundHistory.findIndex(r=>r.id===round.id);
+  const snapshot = JSON.parse(JSON.stringify(round));
+  if(idx > -1) roundHistory[idx] = snapshot;
+  else roundHistory.unshift(snapshot);
+  await saveRoundHistory();
+  renderCourseList();
+}
+async function deleteRoundFromHistory(id){
+  roundHistory = roundHistory.filter(r=>r.id!==id);
+  await saveRoundHistory();
+  renderCourseList();
+}
 
 /* ---------------- Storage ---------------- */
 async function loadCourses(){
@@ -644,16 +672,52 @@ function renderCourseList(){
   wrap.innerHTML = '';
   const visible = courses.filter(c=>!c.hidden);
   const archived = courses.filter(c=>c.hidden);
+  const historyCount = roundHistory.length;
 
-  if(archived.length > 0){
+  if(archived.length > 0 || historyCount > 0){
     const toggle = document.createElement('button');
     toggle.className = 'btn btn-ghost';
     toggle.style.marginBottom = '4px';
-    toggle.textContent = archivedOpen ? `Round List 숨기기` : `Round List (${archived.length})`;
+    const totalCount = archived.length + historyCount;
+    toggle.textContent = archivedOpen ? `Round List 숨기기` : `Round List (${totalCount})`;
     toggle.onclick = ()=>{ archivedOpen = !archivedOpen; renderCourseList(); };
     wrap.appendChild(toggle);
 
     if(archivedOpen){
+      roundHistory.forEach(r=>{
+        const played = Object.keys(r.scores||{}).length;
+        const gross = Object.values(r.scores||{}).reduce((a,b)=>a+b,0);
+        const parSoFar = r.holes.filter(h=>r.scores && r.scores[h.num]!==undefined).reduce((a,h)=>a+h.par,0);
+        const toPar = gross - parSoFar;
+        const toParLabel = played===0 ? '' : (toPar===0 ? 'E' : (toPar>0? '+'+toPar : toPar));
+        const div = document.createElement('div');
+        div.className = 'course-card';
+        div.style.opacity = '0.85';
+        if(pendingHistoryDeleteId === r.id){
+          div.innerHTML = `
+            <div class="name">${r.courseName}</div>
+            <div style="font-size:13px; color:var(--flag-red); font-weight:600;">이 라운드 기록을 삭제할까요? 되돌릴 수 없어요.</div>
+            <div style="display:flex; gap:8px;">
+              <button class="btn btn-ghost" style="flex:1;" onclick="cancelHistoryDelete()">취소</button>
+              <button class="btn" style="flex:1; background:var(--flag-red); color:#fff;" onclick="confirmHistoryDelete('${r.id}')">삭제</button>
+            </div>
+          `;
+        } else {
+          div.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
+              <div>
+                <div class="name">${r.courseName}</div>
+                <div class="course-meta" style="margin-top:2px;"><span>${r.comboLabel} · ${r.dateLabel||''}</span></div>
+              </div>
+              <button onclick="askHistoryDelete('${r.id}')" title="기록 삭제"
+                style="flex:0 0 auto; width:30px; height:30px; border-radius:50%; background:var(--turf-100); color:var(--flag-red); font-size:15px; display:flex; align-items:center; justify-content:center;">✕</button>
+            </div>
+            <div class="course-meta"><span>진행 <b>${played}/${r.holes.length}</b></span><span>스코어 <b>${gross||'-'}</b></span><span>파 대비 <b>${toParLabel||'-'}</b></span></div>
+            <button class="btn btn-ghost" onclick="viewHistoryScorecard('${r.id}')">스코어카드 보기</button>
+          `;
+        }
+        wrap.appendChild(div);
+      });
       archived.forEach(c=>{
         const div = document.createElement('div');
         div.className = 'course-card';
@@ -960,7 +1024,8 @@ function beginRoundWithHoles(course, subCoursesChosen){
   const comboLabel = subCoursesChosen.map(s=>s.name).join(' + ');
   const roundDate = new Date();
   const dateLabel = `${roundDate.getFullYear()}.${String(roundDate.getMonth()+1).padStart(2,'0')}.${String(roundDate.getDate()).padStart(2,'0')} (${['일','월','화','수','목','금','토'][roundDate.getDay()]})`;
-  round = { courseId: course.id, courseName: course.name, comboLabel, dateLabel, holes: flatHoles, scores:{}, putts:{} };
+  round = { id:'r'+Date.now(), courseId: course.id, courseName: course.name, comboLabel, dateLabel, holes: flatHoles, scores:{}, putts:{} };
+  viewingHistoryOnly = false;
   document.getElementById('play-course-name').textContent = `${course.name} · ${comboLabel}`;
   document.getElementById('sc-course-name').textContent = `${course.name} · ${comboLabel}`;
   renderHoleStrip();
@@ -1184,6 +1249,7 @@ function buildScorecard(){
   const wrap = document.getElementById('sc-tables');
   const holes = round.holes;
   document.getElementById('sc-date').textContent = round.dateLabel || '';
+  document.getElementById('sc-save-btn').style.display = viewingHistoryOnly ? 'none' : 'block';
 
   // group consecutive holes by subcourse (each subcourse is 9 holes) so we can
   // render one compact 9-column table per group instead of one wide 18+ column table
@@ -1279,8 +1345,45 @@ function onBannerFileChosen(event){
   event.target.value = '';
 }
 
+function closeScorecard(){
+  if(viewingHistoryOnly){
+    viewingHistoryOnly = false;
+    goto('home');
+  } else {
+    goto('play');
+  }
+}
+
+async function saveCurrentRound(){
+  const btn = document.getElementById('sc-save-btn');
+  await saveRoundToHistory();
+  const original = btn.textContent;
+  btn.textContent = '✅ 저장됨';
+  setTimeout(()=>{ btn.textContent = original; }, 1600);
+}
+
+/* ---------------- Round history: delete confirmation + viewing ---------------- */
+let pendingHistoryDeleteId = null;
+function askHistoryDelete(id){ pendingHistoryDeleteId = id; renderCourseList(); }
+function cancelHistoryDelete(){ pendingHistoryDeleteId = null; renderCourseList(); }
+async function confirmHistoryDelete(id){
+  pendingHistoryDeleteId = null;
+  await deleteRoundFromHistory(id);
+}
+let viewingHistoryOnly = false;
+function viewHistoryScorecard(id){
+  const r = roundHistory.find(x=>x.id===id);
+  if(!r) return;
+  round = r;
+  viewingHistoryOnly = true;
+  document.getElementById('sc-course-name').textContent = `${r.courseName} · ${r.comboLabel}`;
+  goto('scorecard');
+  buildScorecard();
+}
+
 loadCourses();
 loadBannerImage();
+loadRoundHistory().then(renderCourseList);
 </script>
 </body>
 </html>
