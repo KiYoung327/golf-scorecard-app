@@ -515,6 +515,23 @@
     </div>
   </section>
 
+  <!-- ============ STATISTICS ============ -->
+  <section class="screen" id="screen-stats">
+    <div class="top-bar">
+      <div class="header-row">
+        <div>
+          <div class="eyebrow">전체 라운드 통계</div>
+          <h1>Statistics</h1>
+        </div>
+        <button class="icon-btn" onclick="goto('home')">✕</button>
+      </div>
+    </div>
+    <div class="body" style="padding:20px; display:flex; flex-direction:column; gap:14px;">
+      <div id="stats-summary" class="course-card"></div>
+      <div id="stats-breakdown"></div>
+    </div>
+  </section>
+
   <!-- ============ SCORECARD ============ -->
   <section class="screen" id="screen-scorecard">
     <div class="top-bar">
@@ -682,15 +699,28 @@ function renderCourseList(){
   const archived = courses.filter(c=>c.hidden);
   const historyCount = roundHistory.length;
 
+  const btnRow = document.createElement('div');
+  btnRow.style.cssText = 'display:flex; gap:8px; margin-bottom:4px;';
   if(archived.length > 0 || historyCount > 0){
     const toggle = document.createElement('button');
     toggle.className = 'btn btn-ghost';
-    toggle.style.marginBottom = '4px';
+    toggle.style.flex = '1';
+    toggle.style.border = 'none';
     const totalCount = archived.length + historyCount;
     toggle.textContent = archivedOpen ? `Round List 숨기기` : `Round List (${totalCount})`;
     toggle.onclick = ()=>{ archivedOpen = !archivedOpen; renderCourseList(); };
-    wrap.appendChild(toggle);
+    btnRow.appendChild(toggle);
+  }
+  const statsBtn = document.createElement('button');
+  statsBtn.className = 'btn btn-ghost';
+  statsBtn.style.flex = '1';
+  statsBtn.style.border = 'none';
+  statsBtn.textContent = 'Statistics';
+  statsBtn.onclick = ()=>{ goto('stats'); renderStatistics(); };
+  btnRow.appendChild(statsBtn);
+  wrap.appendChild(btnRow);
 
+  if(archived.length > 0 || historyCount > 0){
     if(archivedOpen){
       roundHistory.forEach(r=>{
         const played = Object.keys(r.scores||{}).length;
@@ -1371,6 +1401,61 @@ function onBannerFileChosen(event){
   };
   reader.readAsDataURL(file);
   event.target.value = '';
+}
+
+/* ---------------- Statistics: aggregate Eagle/Birdie/Par/Bogey/etc across all saved rounds ---------------- */
+function renderStatistics(){
+  const summary = document.getElementById('stats-summary');
+  const breakdown = document.getElementById('stats-breakdown');
+
+  const counts = { eagle:0, birdie:0, par:0, bogey:0, double:0 };
+  let holesCounted = 0;
+  let roundsCounted = roundHistory.length;
+
+  roundHistory.forEach(r=>{
+    r.holes.forEach(h=>{
+      const s = r.scores && r.scores[h.num];
+      if(s === undefined) return;
+      holesCounted++;
+      const diff = s - h.par;
+      if(diff <= -2) counts.eagle++;
+      else if(diff === -1) counts.birdie++;
+      else if(diff === 0) counts.par++;
+      else if(diff === 1) counts.bogey++;
+      else counts.double++;
+    });
+  });
+
+  if(roundsCounted === 0 || holesCounted === 0){
+    summary.innerHTML = `<div class="empty-hint" style="padding:8px 4px;">아직 저장된 라운드가 없어요. 라운드를 마치고 스코어카드에서 저장하면 여기 통계가 쌓여요.</div>`;
+    breakdown.innerHTML = '';
+    return;
+  }
+
+  const pct = n => holesCounted>0 ? Math.round((n/holesCounted)*100) : 0;
+
+  summary.innerHTML = `
+    <div class="name" style="margin-bottom:6px;">Let's get a birdie</div>
+    <div class="course-meta"><span>저장된 라운드 <b>${roundsCounted}</b></span><span>기록된 홀 <b>${holesCounted}</b></span></div>
+  `;
+
+  const rows = [
+    { label: '🦅 Eagle 이상', count: counts.eagle, cls: 'mark-eagle' },
+    { label: '🐦 Birdie', count: counts.birdie, cls: 'mark-birdie' },
+    { label: '⛳ Par', count: counts.par, cls: 'mark-par' },
+    { label: '➕ Bogey', count: counts.bogey, cls: 'mark-bogey' },
+    { label: '➕➕ Double 이상', count: counts.double, cls: 'mark-bogey' },
+  ];
+
+  breakdown.innerHTML = rows.map(row => `
+    <div class="course-card" style="display:flex; flex-direction:row; align-items:center; justify-content:space-between; padding:14px 16px; flex-wrap:nowrap; border-radius:7px;">
+      <div style="display:flex; flex-direction:row; align-items:center; gap:10px; min-width:0;">
+        <span class="score-display ${row.cls}" style="width:34px; height:34px; font-size:13px; flex-shrink:0;">${row.count}</span>
+        <span style="font-weight:600; white-space:nowrap;">${row.label}</span>
+      </div>
+      <span style="color:var(--ink-soft); font-size:13px; white-space:nowrap; flex-shrink:0; margin-left:10px;">${pct(row.count)}%</span>
+    </div>
+  `).join('');
 }
 
 function closeScorecard(){
