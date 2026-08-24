@@ -1071,7 +1071,9 @@ function showHole(num){
     btn.classList.toggle('captured', !!has);
   });
   const capturedCount = ['tee','second','green'].filter(k=>h[k+'Lat'] && h[k+'Lng']).length;
-  document.getElementById('geo-status').textContent = capturedCount>0 ? `${capturedCount}/3 지점 저장됨` : '';
+  const drive = driveDistanceForHole(h);
+  const driveText = drive ? ` · 티~세컨 비거리 ${drive}m` : '';
+  document.getElementById('geo-status').textContent = capturedCount>0 ? `${capturedCount}/3 지점 저장됨${driveText}` : '';
 
   const badgeText = `${h.courseLabel} ${h.holeInSub}번 · Par ${h.par}`;
   const mapFrame = document.getElementById('map-frame');
@@ -1130,6 +1132,12 @@ function haversineMeters(a, b){
   const dLng = toRad(b.lng - a.lng);
   const s = Math.sin(dLat/2)**2 + Math.cos(toRad(a.lat))*Math.cos(toRad(b.lat))*Math.sin(dLng/2)**2;
   return R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1-s));
+}
+// Distance from the saved tee point to the saved second-shot point (drive distance), in meters.
+// Returns null if either point hasn't been captured yet.
+function driveDistanceForHole(h){
+  if(!(h.teeLat && h.teeLng && h.secondLat && h.secondLng)) return null;
+  return Math.round(haversineMeters({lat:h.teeLat, lng:h.teeLng}, {lat:h.secondLat, lng:h.secondLng}));
 }
 
 function updateScoreDisplay(){
@@ -1281,9 +1289,14 @@ function buildScorecard(){
       return `<td class="score-cell"><span class="${cls}">${p!==undefined?p:'-'}</span></td>`;
     }).join('') + `<td>${putts.reduce((a,b)=>a+(b||0),0)}</td>`;
 
+    const drives = gHoles.map(h=>driveDistanceForHole(h));
+    const drivesMeasured = drives.filter(d=>d!==null);
+    let driveRow = '<th>비거리</th>' + drives.map(d=>`<td>${d!==null?d+'m':'-'}</td>`).join('')
+      + `<td>${drivesMeasured.length ? Math.round(drivesMeasured.reduce((a,b)=>a+b,0)/drivesMeasured.length)+'m' : '-'}</td>`;
+
     html += `<div class="section-label" style="margin:14px 16px 6px;">${g.label}</div>
       <div class="card-table" style="margin-top:0;">
-        <table><thead><tr>${theadHoles}</tr></thead><tbody><tr>${parRow}</tr><tr>${scoreRow}</tr><tr>${puttRow}</tr></tbody></table>
+        <table><thead><tr>${theadHoles}</tr></thead><tbody><tr>${parRow}</tr><tr>${scoreRow}</tr><tr>${puttRow}</tr><tr>${driveRow}</tr></tbody></table>
       </div>`;
   });
 
