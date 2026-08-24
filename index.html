@@ -521,7 +521,10 @@
       <div class="header-row">
         <div>
           <div class="eyebrow" id="sc-course-name">코스</div>
-          <h1>스코어카드</h1>
+          <div style="display:flex; align-items:baseline; gap:10px;">
+            <h1>스코어카드</h1>
+            <span id="sc-gir" style="font-size:16px; color:rgba(255,255,255,0.85); font-weight:600;"></span>
+          </div>
           <div id="sc-date" style="font-size:12px; color:rgba(255,255,255,0.65); margin-top:2px;"></div>
         </div>
         <button class="icon-btn" onclick="closeScorecard()">✕</button>
@@ -1263,6 +1266,13 @@ function buildScorecard(){
   const holes = round.holes;
   document.getElementById('sc-date').textContent = round.dateLabel || '';
   document.getElementById('sc-save-btn').style.display = viewingHistoryOnly ? 'none' : 'block';
+
+  // GIR (Greens in Regulation): reached the green in (par - 2) strokes or fewer,
+  // i.e. strokes-to-green = score - putts. Only countable for holes with both a score and a putt count.
+  const girEligible = holes.filter(h => round.scores[h.num]!==undefined && round.putts[h.num]!==undefined);
+  const girHit = girEligible.filter(h => (round.scores[h.num] - round.putts[h.num]) <= (h.par - 2));
+  const girPct = holes.length>0 ? Math.round((girHit.length/holes.length)*100) : 0;
+  document.getElementById('sc-gir').textContent = girEligible.length>0 ? `GIR ${girHit.length}/${holes.length} (${girPct}%)` : '';
 
   // group consecutive holes by subcourse (each subcourse is 9 holes) so we can
   // render one compact 9-column table per group instead of one wide 18+ column table
