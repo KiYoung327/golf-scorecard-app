@@ -28,7 +28,7 @@
     --ink-faint:#93A398;
     --line: rgba(19,43,29,0.12);
     --shadow: 0 10px 30px rgba(19,43,29,0.14);
-    --radius-lg: 22px;
+    --radius-lg: 7px;
     --radius-md: 14px;
     --safe-top: env(safe-area-inset-top, 0px);
     --safe-bottom: env(safe-area-inset-bottom, 0px);
@@ -282,7 +282,7 @@
       <div class="section-label">내 코스</div>
       <div id="course-list"></div>
       <div class="fab-row">
-        <button class="btn btn-primary" onclick="openCoursePicker()">+ 코스 추가</button>
+        <button class="btn btn-primary" style="border-radius:4px;" onclick="openCoursePicker()">+ 코스 추가</button>
       </div>
     </div>
   </section>
@@ -813,7 +813,7 @@ function renderCourseList(){
         </div>
         <div class="course-meta"><span>9홀 코스 <b>${subNames}</b></span></div>
         <div class="course-meta"><span>총 홀 수 <b>${totalHoles}</b></span><span>파 합계 <b>${totalPar}</b></span></div>
-        <button class="btn btn-primary" onclick="startRound('${c.id}')">라운드 시작</button>
+        <button class="btn btn-primary" style="background:transparent; color:var(--fairway-600);" onclick="startRound('${c.id}')">라운드 시작</button>
       `;
     }
     wrap.appendChild(div);
