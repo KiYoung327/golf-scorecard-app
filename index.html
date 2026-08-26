@@ -1453,7 +1453,7 @@ function renderStatistics(){
     const par = best.holes.reduce((a,h)=>a+h.par,0);
     const toParLabel = bestToPar===0 ? 'E' : (bestToPar>0 ? '+'+bestToPar : bestToPar);
     lifebest.innerHTML = `
-      <div class="course-card" style="margin-bottom:14px;">
+      <div class="course-card" style="margin-bottom:14px; background:transparent; box-shadow:none; border:none;">
         <div class="name" style="margin-bottom:4px;">Life Best</div>
         <div class="course-meta"><span>${best.courseName} · ${best.comboLabel}</span></div>
         <div class="course-meta"><span>${best.dateLabel||''}</span></div>
