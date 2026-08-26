@@ -81,6 +81,7 @@
   /* ---------- Home screen ---------- */
   #screen-home .body{ padding:20px; flex:1; display:flex; flex-direction:column; gap:14px; }
   .section-label{ font-size:12px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:var(--ink-faint); margin: 6px 2px 0; }
+  .section-divider{ height:1px; background:var(--line); }
   .course-card{
     background:var(--card);
     border-radius:var(--radius-lg);
@@ -528,8 +529,9 @@
       </div>
     </div>
     <div class="body" style="padding:20px; display:flex; flex-direction:column; gap:14px;">
-      <div id="stats-summary" class="course-card" style="background:transparent; box-shadow:none; border:none;"></div>
       <div id="stats-lifebest"></div>
+      <div class="section-divider"></div>
+      <div id="stats-summary" class="course-card" style="background:transparent; box-shadow:none; border:none;"></div>
       <div id="stats-breakdown"></div>
     </div>
   </section>
