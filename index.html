@@ -203,8 +203,9 @@
   }
   .putt-btn:active{ background:var(--fairway-500); color:#fff; }
   .putt-display{ font-family:'Roboto Mono'; font-size:19px; font-weight:700; color:var(--ink); text-align:center; min-width:20px;
-    width:44px; height:44px; display:flex; align-items:center; justify-content:center; border:2px solid var(--fairway-500); border-radius:50%; transition: all .15s ease; }
+    width:44px; height:44px; display:flex; align-items:center; justify-content:center; border:2px solid var(--line); border-radius:50%; transition: all .15s ease; }
   .putt-display.mark-good{ border-color: var(--birdie-gold); box-shadow: inset 0 0 0 2px rgba(180,135,44,0.15); }
+  .putt-display.mark-par{ border-color: var(--fairway-500); }
   .putt-display.mark-bad{ border-radius:9px; border-color: var(--flag-red); }
 
   .nav-row{ display:flex; gap:10px; padding:16px; padding-bottom:2px; }
@@ -528,6 +529,7 @@
     </div>
     <div class="body" style="padding:20px; display:flex; flex-direction:column; gap:14px;">
       <div id="stats-summary" class="course-card" style="background:transparent; box-shadow:none; border:none;"></div>
+      <div id="stats-lifebest"></div>
       <div id="stats-breakdown"></div>
     </div>
   </section>
@@ -1253,6 +1255,7 @@ function updatePuttDisplay(){
   if(p !== undefined){
     if(p < 2) disp.classList.add('mark-good');
     else if(p > 2) disp.classList.add('mark-bad');
+    else disp.classList.add('mark-par');
   }
 }
 function changePutt(delta){
@@ -1407,6 +1410,7 @@ function onBannerFileChosen(event){
 function renderStatistics(){
   const summary = document.getElementById('stats-summary');
   const breakdown = document.getElementById('stats-breakdown');
+  const lifebest = document.getElementById('stats-lifebest');
 
   const counts = { eagle:0, birdie:0, par:0, bogey:0, double:0 };
   let holesCounted = 0;
@@ -1429,7 +1433,38 @@ function renderStatistics(){
   if(roundsCounted === 0 || holesCounted === 0){
     summary.innerHTML = `<div class="empty-hint" style="padding:8px 4px;">아직 저장된 라운드가 없어요. 라운드를 마치고 스코어카드에서 저장하면 여기 통계가 쌓여요.</div>`;
     breakdown.innerHTML = '';
+    lifebest.innerHTML = '';
     return;
+  }
+
+  // Life Best: lowest to-par among fully completed rounds (every hole scored),
+  // so rounds of different lengths (9/18/27 holes) compare fairly.
+  const completed = roundHistory.filter(r => r.holes.every(h => r.scores && r.scores[h.num] !== undefined));
+  if(completed.length > 0){
+    let best = completed[0];
+    let bestToPar = Infinity;
+    completed.forEach(r=>{
+      const gross = r.holes.reduce((a,h)=>a+r.scores[h.num],0);
+      const par = r.holes.reduce((a,h)=>a+h.par,0);
+      const toPar = gross - par;
+      if(toPar < bestToPar){ bestToPar = toPar; best = r; }
+    });
+    const gross = best.holes.reduce((a,h)=>a+best.scores[h.num],0);
+    const par = best.holes.reduce((a,h)=>a+h.par,0);
+    const toParLabel = bestToPar===0 ? 'E' : (bestToPar>0 ? '+'+bestToPar : bestToPar);
+    lifebest.innerHTML = `
+      <div class="course-card" style="margin-bottom:14px;">
+        <div class="name" style="margin-bottom:4px;">Life Best</div>
+        <div class="course-meta"><span>${best.courseName} · ${best.comboLabel}</span></div>
+        <div class="course-meta"><span>${best.dateLabel||''}</span></div>
+        <div style="margin-top:6px; display:flex; align-items:baseline; gap:8px;">
+          <span style="font-family:'Roboto Mono'; font-size:28px; font-weight:700; color:var(--fairway-700);">${gross}</span>
+          <span style="font-size:14px; color:var(--ink-soft);">(파 ${par}, ${toParLabel})</span>
+        </div>
+      </div>
+    `;
+  } else {
+    lifebest.innerHTML = `<div class="empty-hint" style="padding:4px 4px 14px;">18홀(또는 9/27홀)을 모두 완료하고 저장한 라운드가 아직 없어요.</div>`;
   }
 
   const pct = n => holesCounted>0 ? Math.round((n/holesCounted)*100) : 0;
