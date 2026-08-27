@@ -146,10 +146,14 @@
   .map-nav-btn:active{ background:rgba(19,43,29,0.75); }
   .map-nav-btn.left{ left:28px; }
   .map-nav-btn.right{ right:28px; }
+  .map-bottom-shade{
+    position:absolute; left:0; right:0; bottom:0; height:58px; z-index:2; pointer-events:none;
+    background: linear-gradient(0deg, rgba(19,43,29,0.6) 0%, rgba(19,43,29,0.15) 60%, rgba(19,43,29,0) 100%);
+  }
   .map-expand-btn{
-    position:absolute; bottom:28px; right:28px; z-index:3;
-    width:38px; height:38px; border-radius:10px;
-    background:rgba(19,43,29,0.5); backdrop-filter:blur(6px);
+    position:absolute; bottom:10px; right:10px; z-index:3;
+    width:44px; height:44px; border-radius:10px;
+    background:rgba(19,43,29,0.6); backdrop-filter:blur(6px);
     color:#fff; display:flex; align-items:center; justify-content:center;
     border:1.5px solid rgba(255,255,255,0.35);
   }
@@ -495,6 +499,7 @@
 
     <div class="hole-hero">
       <div class="map-frame" id="map-frame"></div>
+      <div class="map-bottom-shade"></div>
       <button class="map-nav-btn left" onclick="changeHole(-1)" aria-label="이전 홀">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
       </button>
@@ -621,6 +626,7 @@
   <button class="fs-close" onclick="closeFullscreenMap()" aria-label="닫기">✕</button>
   <div class="fs-badge" id="fs-badge"></div>
   <div id="fs-map-inner" style="width:100%; height:100%;"></div>
+  <div class="map-bottom-shade" style="height:80px;"></div>
 </div>
 
 <script>
