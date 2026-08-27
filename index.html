@@ -263,9 +263,9 @@
       <div class="header-row">
         <div>
           <div class="eyebrow">라운드 준비</div>
-          <h1>골프 스코어</h1>
+          <h1 id="home-title">골프 스코어</h1>
         </div>
-        <button class="icon-btn" onclick="pickBannerImage()" title="배경 사진 변경" aria-label="배경 사진 변경">
+        <button class="icon-btn" onclick="goto('settings')" title="설정" aria-label="설정">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="3"/>
             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
@@ -514,6 +514,29 @@
       <div class="t"><div class="v" id="tot-gross">0</div><div class="l">합계</div></div>
       <div class="t"><div class="v" id="tot-topar">E</div><div class="l">파 대비</div></div>
       <div class="t"><button class="icon-btn" onclick="goto('scorecard')" style="width:auto; padding:0 12px; border-radius:14px; font-size:12px;">카드</button></div>
+    </div>
+  </section>
+
+  <!-- ============ SETTINGS ============ -->
+  <section class="screen" id="screen-settings">
+    <div class="top-bar">
+      <div class="header-row">
+        <div>
+          <div class="eyebrow">환경설정</div>
+          <h1>설정</h1>
+        </div>
+        <button class="icon-btn" onclick="goto('home')">✕</button>
+      </div>
+    </div>
+    <div class="body" style="padding:20px; display:flex; flex-direction:column; gap:14px;">
+      <div class="field">
+        <label>사용자 이름</label>
+        <input id="settings-username" placeholder="예: 홍길동" />
+      </div>
+      <button class="btn btn-primary" style="background:transparent; color:var(--fairway-600);" onclick="saveUserName()">이름 저장</button>
+      <div style="height:1px; background:var(--line); margin:6px 0;"></div>
+      <button class="btn btn-ghost" style="background:transparent; border:none;" onclick="pickBannerImage()">🖼️ 홈 화면 사진 변경</button>
+      <div class="section-divider"></div>
     </div>
   </section>
 
@@ -1366,6 +1389,27 @@ goto = function(screen){
   if(screen === 'scorecard') buildScorecard();
 };
 
+/* ---------------- User name (설정에서 지정) ---------------- */
+const USERNAME_KEY = 'user-name';
+async function loadUserName(){
+  try{
+    const val = await storageGet(USERNAME_KEY);
+    applyUserName(val || '');
+  }catch(e){ applyUserName(''); }
+}
+function applyUserName(name){
+  const title = document.getElementById('home-title');
+  title.textContent = name ? `${name}님의 골프 스코어` : '골프 스코어';
+  const input = document.getElementById('settings-username');
+  if(input) input.value = name || '';
+}
+async function saveUserName(){
+  const name = document.getElementById('settings-username').value.trim();
+  await storageSet(USERNAME_KEY, name);
+  applyUserName(name);
+  goto('home');
+}
+
 /* ---------------- Home banner image (사용자 지정 이미지) ---------------- */
 const BANNER_KEY = 'home-banner-image';
 async function loadBannerImage(){
@@ -1477,7 +1521,6 @@ function renderStatistics(){
   `;
 
   const rows = [
-    { label: '🦅 Eagle 이상', count: counts.eagle, cls: 'mark-eagle' },
     { label: '🐦 Birdie', count: counts.birdie, cls: 'mark-birdie' },
     { label: '⛳ Par', count: counts.par, cls: 'mark-par' },
     { label: '➕ Bogey', count: counts.bogey, cls: 'mark-bogey' },
@@ -1490,7 +1533,7 @@ function renderStatistics(){
         <span class="score-display ${row.cls}" style="width:34px; height:34px; font-size:13px; flex-shrink:0;">${row.count}</span>
         <span style="font-weight:600; white-space:nowrap;">${row.label}</span>
       </div>
-      <span style="color:var(--ink-soft); font-size:13px; white-space:nowrap; flex-shrink:0; margin-left:10px;">${pct(row.count)}%</span>
+      <span style="color:var(--ink-soft); font-size:17px; font-weight:700; white-space:nowrap; flex-shrink:0; margin-left:10px;">${pct(row.count)}%</span>
     </div>
   `).join('');
 }
@@ -1533,6 +1576,7 @@ function viewHistoryScorecard(id){
 
 loadCourses();
 loadBannerImage();
+loadUserName();
 loadRoundHistory().then(renderCourseList);
 </script>
 </body>
