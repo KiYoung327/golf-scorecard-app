@@ -146,6 +146,37 @@
   .map-nav-btn:active{ background:rgba(19,43,29,0.75); }
   .map-nav-btn.left{ left:28px; }
   .map-nav-btn.right{ right:28px; }
+  .map-expand-btn{
+    position:absolute; bottom:28px; right:28px; z-index:3;
+    width:38px; height:38px; border-radius:10px;
+    background:rgba(19,43,29,0.5); backdrop-filter:blur(6px);
+    color:#fff; display:flex; align-items:center; justify-content:center;
+    border:1.5px solid rgba(255,255,255,0.35);
+  }
+  .map-expand-btn svg{ width:18px; height:18px; }
+  .map-expand-btn:active{ background:rgba(19,43,29,0.75); }
+
+  .fullscreen-map{
+    display:none; position:fixed; inset:0; z-index:2000; background:#000;
+  }
+  .fullscreen-map.active{ display:block; }
+  .fullscreen-map iframe{ width:100%; height:100%; border:0; display:block; }
+  .fullscreen-map .fs-placeholder{
+    position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px;
+    color:rgba(255,255,255,0.85); background: linear-gradient(160deg, var(--fairway-600), var(--fairway-900));
+  }
+  .fullscreen-map .fs-close{
+    position:absolute; top: calc(16px + var(--safe-top)); right:16px; z-index:2001;
+    width:44px; height:44px; border-radius:50%;
+    background:rgba(0,0,0,0.5); backdrop-filter:blur(6px); color:#fff;
+    display:flex; align-items:center; justify-content:center; font-size:22px;
+    border:1.5px solid rgba(255,255,255,0.35);
+  }
+  .fullscreen-map .fs-badge{
+    position:absolute; top: calc(16px + var(--safe-top)); left:16px; z-index:2001;
+    background:rgba(19,43,29,0.55); backdrop-filter:blur(6px);
+    color:#fff; padding:8px 14px; border-radius:999px; font-family:'Barlow Condensed'; font-size:16px; font-weight:700;
+  }
   .map-frame{
     width:100%; height:54vh; min-height:280px; overflow:hidden; position:relative;
     background: linear-gradient(160deg, var(--fairway-600), var(--fairway-900));
@@ -470,6 +501,9 @@
       <button class="map-nav-btn right" onclick="changeHole(1)" aria-label="다음 홀">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>
       </button>
+      <button class="map-expand-btn" onclick="openFullscreenMap()" aria-label="전체화면으로 보기">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+      </button>
     </div>
 
     <div class="hole-info">
@@ -581,6 +615,12 @@
     </div>
   </section>
 
+</div>
+
+<div class="fullscreen-map" id="fullscreen-map">
+  <button class="fs-close" onclick="closeFullscreenMap()" aria-label="닫기">✕</button>
+  <div class="fs-badge" id="fs-badge"></div>
+  <div id="fs-map-inner" style="width:100%; height:100%;"></div>
 </div>
 
 <script>
@@ -1184,6 +1224,30 @@ function computeHoleMapView(h){
   else if(maxDist < 800) zoom = 15;
   else zoom = 14;
   return { lat: avgLat, lng: avgLng, zoom };
+}
+
+/* ---------------- Fullscreen hole map ---------------- */
+function openFullscreenMap(){
+  const h = round.holes.find(x=>x.num===activeHole);
+  if(!h) return;
+  const view = computeHoleMapView(h);
+  const inner = document.getElementById('fs-map-inner');
+  document.getElementById('fs-badge').textContent = `${h.courseLabel} ${h.holeInSub}번 · Par ${h.par}`;
+  if(view){
+    // zoom in one extra level for the bigger fullscreen frame
+    const fsZoom = Math.min(view.zoom + 1, 20);
+    inner.innerHTML = `<iframe loading="lazy" src="https://maps.google.com/maps?q=${view.lat},${view.lng}&t=k&z=${fsZoom}&output=embed"></iframe>`;
+  } else {
+    inner.innerHTML = `<div class="fs-placeholder">
+        <svg viewBox="0 0 24 24" width="56" height="56" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M6 21V4l11 4-11 4"/></svg>
+        <span style="padding:0 40px; text-align:center; font-size:14px;">위성사진 좌표가 없어요. 티샷·세컨샷·그린 위치를 저장하면 여기에 표시돼요.</span>
+      </div>`;
+  }
+  document.getElementById('fullscreen-map').classList.add('active');
+}
+function closeFullscreenMap(){
+  document.getElementById('fullscreen-map').classList.remove('active');
+  document.getElementById('fs-map-inner').innerHTML = '';
 }
 function haversineMeters(a, b){
   const R = 6371000;
