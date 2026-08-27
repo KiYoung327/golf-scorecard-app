@@ -1399,7 +1399,10 @@ async function loadUserName(){
 }
 function applyUserName(name){
   const title = document.getElementById('home-title');
-  title.textContent = name ? `${name}님의 골프 스코어` : '골프 스코어';
+  const escaped = name.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  title.innerHTML = name
+    ? `골프 스코어 <span style="font-size:0.5em;">${escaped}</span>`
+    : '골프 스코어';
   const input = document.getElementById('settings-username');
   if(input) input.value = name || '';
 }
