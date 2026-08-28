@@ -825,7 +825,7 @@ function renderCourseList(){
                 style="flex:0 0 auto; width:30px; height:30px; border-radius:50%; background:var(--turf-100); color:var(--flag-red); font-size:15px; display:flex; align-items:center; justify-content:center;">✕</button>
             </div>
             <div class="course-meta"><span>진행 <b>${played}/${r.holes.length}</b></span><span>스코어 <b>${gross||'-'}</b></span><span>파 대비 <b>${toParLabel||'-'}</b></span></div>
-            <button class="btn btn-ghost" onclick="viewHistoryScorecard('${r.id}')">스코어카드 보기</button>
+            <button class="btn btn-ghost" style="border:none;" onclick="viewHistoryScorecard('${r.id}')">스코어카드 보기</button>
           `;
         }
         wrap.appendChild(div);
@@ -1402,7 +1402,11 @@ function buildScorecard(){
   const girEligible = holes.filter(h => round.scores[h.num]!==undefined && round.putts[h.num]!==undefined);
   const girHit = girEligible.filter(h => (round.scores[h.num] - round.putts[h.num]) <= (h.par - 2));
   const girPct = holes.length>0 ? Math.round((girHit.length/holes.length)*100) : 0;
-  document.getElementById('sc-gir').textContent = girEligible.length>0 ? `GIR ${girHit.length}/${holes.length} (${girPct}%)` : '';
+  let girStars = '';
+  if(girPct <= 40) girStars = ' ★★★';
+  else if(girPct <= 50) girStars = ' ★★';
+  else if(girPct <= 60) girStars = ' ★';
+  document.getElementById('sc-gir').textContent = girEligible.length>0 ? `GIR ${girHit.length}/${holes.length} (${girPct}%)${girStars}` : '';
 
   // group consecutive holes by subcourse (each subcourse is 9 holes) so we can
   // render one compact 9-column table per group instead of one wide 18+ column table
