@@ -1297,7 +1297,7 @@ function saveCurrentLocationForHole(pointType){
     status.textContent = '이 브라우저는 위치 정보를 지원하지 않아요';
     return;
   }
-  const originalLabel = btn.textContent;
+  const originalHTML = btn.innerHTML;
   btn.textContent = '확인 중...';
   btn.disabled = true;
   navigator.geolocation.getCurrentPosition(
@@ -1316,18 +1316,18 @@ function saveCurrentLocationForHole(pointType){
       }
 
       btn.disabled = false;
-      btn.textContent = originalLabel;
+      btn.innerHTML = originalHTML;
       showHole(activeHole);
-      status.textContent = `${GEO_LABELS[pointType]} 위치 저장됨 ✅`;
-      setTimeout(()=>{ if(status.textContent.includes('저장됨')) status.textContent = ''; }, 2000);
+      status.textContent = `${GEO_LABELS[pointType]} 위치 저장됨 ✅ (정확도 ±${Math.round(pos.coords.accuracy)}m)`;
+      setTimeout(()=>{ if(status.textContent.includes('저장됨')) status.textContent = ''; }, 2500);
     },
     (err)=>{
       btn.disabled = false;
-      btn.textContent = originalLabel;
-      status.textContent = err.code === 1 ? '위치 접근이 거부됐어요 (설정에서 허용해주세요)' : '위치를 가져오지 못했어요';
-      setTimeout(()=>{ status.textContent = ''; }, 2400);
+      btn.innerHTML = originalHTML;
+      status.textContent = err.code === 1 ? '위치 접근이 거부됐어요 (설정에서 허용해주세요)' : (err.code === 3 ? '위치 확인이 너무 오래 걸려요. GPS 신호가 좋은 곳(하늘이 트인 곳)에서 다시 시도해주세요' : '위치를 가져오지 못했어요');
+      setTimeout(()=>{ status.textContent = ''; }, 3000);
     },
-    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
   );
 }
 
@@ -1403,9 +1403,9 @@ function buildScorecard(){
   const girHit = girEligible.filter(h => (round.scores[h.num] - round.putts[h.num]) <= (h.par - 2));
   const girPct = holes.length>0 ? Math.round((girHit.length/holes.length)*100) : 0;
   let girStars = '';
-  if(girPct <= 40) girStars = ' ★★★';
-  else if(girPct <= 50) girStars = ' ★★';
-  else if(girPct <= 60) girStars = ' ★';
+  if(girPct >= 60) girStars = ' ★★★';
+  else if(girPct >= 50) girStars = ' ★★';
+  else if(girPct >= 40) girStars = ' ★';
   document.getElementById('sc-gir').textContent = girEligible.length>0 ? `GIR ${girHit.length}/${holes.length} (${girPct}%)${girStars}` : '';
 
   // group consecutive holes by subcourse (each subcourse is 9 holes) so we can
