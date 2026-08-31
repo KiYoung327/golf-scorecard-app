@@ -852,6 +852,7 @@ function renderCourseList(){
           div.innerHTML = `
             <div class="name">${c.name}</div>
             <div class="course-meta"><span>홈 화면 목록에서 제거된 코스예요</span></div>
+            <button class="btn btn-primary" style="background:transparent; color:var(--fairway-600); margin-bottom:6px;" onclick="startRound('${c.id}')">라운드 시작</button>
             <div style="display:flex; gap:8px;">
               <button class="btn btn-ghost" style="flex:1;" onclick="restoreCourse('${c.id}')">목록에 다시 표시</button>
               <button class="btn btn-ghost" style="flex:1; color:var(--flag-red); border-color:var(--flag-red);" onclick="askPermaDelete('${c.id}')">영구 삭제</button>
