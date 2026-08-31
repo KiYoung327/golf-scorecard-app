@@ -1295,6 +1295,10 @@ function updateScoreDisplay(){
 
 /* ---------------- Save current GPS location as a hole's tee/second/green point ---------------- */
 const GEO_LABELS = { tee:'티샷', second:'세컨샷', green:'그린' };
+// Collects GPS fixes for a few seconds and keeps the most accurate one,
+// instead of trusting whatever single fix arrives first. iOS often returns
+// a fast, low-accuracy fix immediately after moving before it fully re-locks;
+// sampling for a short window fixes that without a big wait for the user.
 function saveCurrentLocationForHole(pointType){
   const btn = document.getElementById('geo-btn-'+pointType);
   const status = document.getElementById('geo-status');
@@ -1303,37 +1307,76 @@ function saveCurrentLocationForHole(pointType){
     return;
   }
   const originalHTML = btn.innerHTML;
-  btn.textContent = '확인 중...';
   btn.disabled = true;
-  navigator.geolocation.getCurrentPosition(
-    async (pos)=>{
-      const lat = pos.coords.latitude, lng = pos.coords.longitude;
-      const h = round.holes.find(x=>x.num===activeHole);
-      if(h){ h[pointType+'Lat'] = lat; h[pointType+'Lng'] = lng; }
 
-      // persist back into the saved course data so future rounds use it too
-      const course = courses.find(c=>c.id===round.courseId);
-      if(course && h){
-        const sub = course.subCourses.find(s=>s.name===h.courseLabel);
-        const savedHole = sub && sub.holes.find(x=>x.num===h.holeInSub);
-        if(savedHole){ savedHole[pointType+'Lat'] = lat; savedHole[pointType+'Lng'] = lng; }
-        await saveCourses();
+  const GOOD_ENOUGH_ACCURACY = 6;   // meters — stop early if we get a fix this good
+  const MAX_WAIT_MS = 9000;         // otherwise sample for up to ~9 seconds
+  let best = null;
+  let watchId = null;
+  let finished = false;
+
+  function finish(){
+    if(finished) return;
+    finished = true;
+    if(watchId !== null) navigator.geolocation.clearWatch(watchId);
+    btn.disabled = false;
+    btn.innerHTML = originalHTML;
+
+    if(!best){
+      status.textContent = '위치를 가져오지 못했어요. GPS 신호가 좋은 곳(하늘이 트인 곳)에서 다시 시도해주세요';
+      setTimeout(()=>{ status.textContent = ''; }, 3000);
+      return;
+    }
+    saveResolvedPoint(pointType, best);
+  }
+
+  status.textContent = `${GEO_LABELS[pointType]} 위치 확인 중...`;
+  btn.textContent = '측정 중...';
+
+  watchId = navigator.geolocation.watchPosition(
+    (pos)=>{
+      if(finished) return;
+      if(!best || pos.coords.accuracy < best.coords.accuracy){
+        best = pos;
+        status.textContent = `${GEO_LABELS[pointType]} 위치 확인 중... (정확도 ±${Math.round(pos.coords.accuracy)}m)`;
       }
-
-      btn.disabled = false;
-      btn.innerHTML = originalHTML;
-      showHole(activeHole);
-      status.textContent = `${GEO_LABELS[pointType]} 위치 저장됨 ✅ (정확도 ±${Math.round(pos.coords.accuracy)}m)`;
-      setTimeout(()=>{ if(status.textContent.includes('저장됨')) status.textContent = ''; }, 2500);
+      if(pos.coords.accuracy <= GOOD_ENOUGH_ACCURACY) finish();
     },
     (err)=>{
-      btn.disabled = false;
-      btn.innerHTML = originalHTML;
-      status.textContent = err.code === 1 ? '위치 접근이 거부됐어요 (설정에서 허용해주세요)' : (err.code === 3 ? '위치 확인이 너무 오래 걸려요. GPS 신호가 좋은 곳(하늘이 트인 곳)에서 다시 시도해주세요' : '위치를 가져오지 못했어요');
-      setTimeout(()=>{ status.textContent = ''; }, 3000);
+      if(finished) return;
+      if(!best){
+        finished = true;
+        if(watchId !== null) navigator.geolocation.clearWatch(watchId);
+        btn.disabled = false;
+        btn.innerHTML = originalHTML;
+        status.textContent = err.code === 1 ? '위치 접근이 거부됐어요 (설정에서 허용해주세요)' : '위치를 가져오지 못했어요';
+        setTimeout(()=>{ status.textContent = ''; }, 3000);
+      }
     },
-    { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
+    { enableHighAccuracy: true, timeout: MAX_WAIT_MS, maximumAge: 0 }
   );
+
+  setTimeout(finish, MAX_WAIT_MS);
+}
+
+async function saveResolvedPoint(pointType, pos){
+  const lat = pos.coords.latitude, lng = pos.coords.longitude;
+  const h = round.holes.find(x=>x.num===activeHole);
+  if(h){ h[pointType+'Lat'] = lat; h[pointType+'Lng'] = lng; }
+
+  // persist back into the saved course data so future rounds use it too
+  const course = courses.find(c=>c.id===round.courseId);
+  if(course && h){
+    const sub = course.subCourses.find(s=>s.name===h.courseLabel);
+    const savedHole = sub && sub.holes.find(x=>x.num===h.holeInSub);
+    if(savedHole){ savedHole[pointType+'Lat'] = lat; savedHole[pointType+'Lng'] = lng; }
+    await saveCourses();
+  }
+
+  showHole(activeHole);
+  const status = document.getElementById('geo-status');
+  status.textContent = `${GEO_LABELS[pointType]} 위치 저장됨 ✅ (정확도 ±${Math.round(pos.coords.accuracy)}m)`;
+  setTimeout(()=>{ if(status.textContent.includes('저장됨')) status.textContent = ''; }, 2500);
 }
 
 function changeScore(delta){
