@@ -983,6 +983,17 @@ function renderCoursePicker(){
   });
 }
 function selectKRCourse(c){
+  // Already added this course before (even if hidden)? Reuse it — including any
+  // GPS coordinates already captured — instead of starting a fresh/duplicate entry.
+  const existing = courses.find(existingCourse => existingCourse.name === c.name);
+  if(existing){
+    if(existing.hidden){ existing.hidden = false; saveCourses(); }
+    renderCourseList();
+    goto('home');
+    startRound(existing.id);
+    return;
+  }
+
   draftCourse = { id: 'c'+Date.now(), name: c.name, krLat: c.lat, krLng: c.lng, subCourses: [] };
   const autofill = KR_COURSE_HOLE_DATA[c.name];
   if(autofill){
@@ -1020,6 +1031,14 @@ async function applyAutofill(){
 /* ---------------- New course flow (직접 입력) ---------------- */
 function createCourse(){
   const name = document.getElementById('nc-name').value.trim() || '이름 없는 코스';
+  const existing = courses.find(existingCourse => existingCourse.name === name);
+  if(existing){
+    if(existing.hidden){ existing.hidden = false; saveCourses(); }
+    renderCourseList();
+    goto('home');
+    startRound(existing.id);
+    return;
+  }
   draftCourse = { id: 'c'+Date.now(), name, krLat: null, krLng: null, subCourses: [] };
   document.getElementById('sub-count-course-name').textContent = draftCourse.name;
   goto('subcount');
