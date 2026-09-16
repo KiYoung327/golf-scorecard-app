@@ -102,6 +102,17 @@
   .btn-ghost{ background:transparent; color:var(--fairway-700); border:1.5px solid var(--line); }
   .btn-ghost:active{ background:var(--turf-100); }
   .geo-pt-btn.captured{ background:var(--fairway-600); color:#fff; border-color:var(--fairway-600); }
+  .adjust-target-chip{
+    padding:6px 14px; border-radius:999px; font-size:12px; font-weight:600;
+    background:var(--turf-100); color:var(--ink-soft); border:1.5px solid var(--line);
+  }
+  .adjust-target-chip.active{ background:var(--fairway-600); color:#fff; border-color:var(--fairway-600); }
+  .adjust-target-chip:disabled{ opacity:0.4; }
+  .adjust-arrow-btn{
+    width:38px; height:38px; border-radius:10px; background:var(--turf-100); color:var(--fairway-700);
+    font-size:16px; font-weight:700; display:flex; align-items:center; justify-content:center; border:1px solid var(--line);
+  }
+  .adjust-arrow-btn:active{ background:var(--fairway-500); color:#fff; }
   .fab-row{ display:flex; gap:10px; }
   .fab-row .btn{ flex:1; }
   .empty-hint{ text-align:center; color:var(--ink-faint); font-size:13px; padding:10px 24px 4px; }
@@ -526,6 +537,23 @@
     </div>
     <div style="padding:6px 16px 0; text-align:center;">
       <span id="geo-status" style="font-size:12px; color:var(--ink-faint);"></span>
+    </div>
+
+    <div id="geo-adjust-panel" style="padding:8px 16px 0; display:none;">
+      <div style="font-size:11px; color:var(--ink-faint); text-align:center; margin-bottom:6px;">위성사진을 보면서 위치를 미세 조정하세요</div>
+      <div style="display:flex; gap:6px; justify-content:center; margin-bottom:8px;">
+        <button class="adjust-target-chip" id="adjtgt-tee" onclick="selectAdjustTarget('tee')">티샷</button>
+        <button class="adjust-target-chip" id="adjtgt-second" onclick="selectAdjustTarget('second')">세컨샷</button>
+        <button class="adjust-target-chip" id="adjtgt-green" onclick="selectAdjustTarget('green')">그린</button>
+      </div>
+      <div style="display:flex; flex-direction:column; align-items:center; gap:4px;">
+        <button class="adjust-arrow-btn" onclick="nudgePoint(1,0)">▲</button>
+        <div style="display:flex; gap:32px;">
+          <button class="adjust-arrow-btn" onclick="nudgePoint(0,-1)">◀</button>
+          <button class="adjust-arrow-btn" onclick="nudgePoint(0,1)">▶</button>
+        </div>
+        <button class="adjust-arrow-btn" onclick="nudgePoint(-1,0)">▼</button>
+      </div>
     </div>
 
     <div class="score-putt-row">
@@ -1235,6 +1263,7 @@ function showHole(num){
   const drive = driveDistanceForHole(h);
   const driveText = drive ? ` · 티~세컨 비거리 ${drive}m` : '';
   document.getElementById('geo-status').textContent = capturedCount>0 ? `${capturedCount}/3 지점 저장됨${driveText}` : '';
+  updateAdjustPanel(h);
 
   const badgeText = `${h.courseLabel} ${h.holeInSub}번 · Par ${h.par}`;
   const mapFrame = document.getElementById('map-frame');
@@ -1325,6 +1354,52 @@ function driveDistanceForHole(h){
   return Math.round(haversineMeters({lat:h.teeLat, lng:h.teeLng}, {lat:h.secondLat, lng:h.secondLng}));
 }
 
+/* ---------------- Manual fine-tune (nudge a captured point while watching the satellite photo) ---------------- */
+let adjustTarget = null; // 'tee' | 'second' | 'green' | null
+const NUDGE_LAT_STEP = 0.000018; // ~2m
+const NUDGE_LNG_STEP = 0.000023; // ~2m at Korea's latitude
+
+function updateAdjustPanel(h){
+  const panel = document.getElementById('geo-adjust-panel');
+  const anyCaptured = ['tee','second','green'].some(k=>h[k+'Lat'] && h[k+'Lng']);
+  panel.style.display = anyCaptured ? 'block' : 'none';
+  if(!anyCaptured){ adjustTarget = null; return; }
+
+  // keep the current target if it's still valid for this hole, otherwise pick the first captured point
+  if(!adjustTarget || !(h[adjustTarget+'Lat'] && h[adjustTarget+'Lng'])){
+    adjustTarget = ['tee','second','green'].find(k=>h[k+'Lat'] && h[k+'Lng']) || null;
+  }
+  ['tee','second','green'].forEach(k=>{
+    const chip = document.getElementById('adjtgt-'+k);
+    const has = h[k+'Lat'] && h[k+'Lng'];
+    chip.disabled = !has;
+    chip.classList.toggle('active', adjustTarget === k);
+  });
+}
+function selectAdjustTarget(kind){
+  const h = round.holes.find(x=>x.num===activeHole);
+  if(!h || !(h[kind+'Lat'] && h[kind+'Lng'])) return;
+  adjustTarget = kind;
+  updateAdjustPanel(h);
+}
+async function nudgePoint(dLatSteps, dLngSteps){
+  if(!adjustTarget) return;
+  const h = round.holes.find(x=>x.num===activeHole);
+  if(!h || !(h[adjustTarget+'Lat'] && h[adjustTarget+'Lng'])) return;
+
+  h[adjustTarget+'Lat'] += dLatSteps * NUDGE_LAT_STEP;
+  h[adjustTarget+'Lng'] += dLngSteps * NUDGE_LNG_STEP;
+
+  const course = courses.find(c=>c.id===round.courseId);
+  if(course){
+    const sub = course.subCourses.find(s=>s.name===h.courseLabel);
+    const savedHole = sub && sub.holes.find(x=>x.num===h.holeInSub);
+    if(savedHole){ savedHole[adjustTarget+'Lat'] = h[adjustTarget+'Lat']; savedHole[adjustTarget+'Lng'] = h[adjustTarget+'Lng']; }
+    await saveCourses();
+  }
+  showHole(activeHole);
+}
+
 function updateScoreDisplay(){
   const h = round.holes.find(x=>x.num===activeHole);
   const s = round.scores[activeHole];
@@ -1348,6 +1423,8 @@ const GEO_LABELS = { tee:'티샷', second:'세컨샷', green:'그린' };
 // instead of trusting whatever single fix arrives first. iOS often returns
 // a fast, low-accuracy fix immediately after moving before it fully re-locks;
 // sampling for a short window fixes that without a big wait for the user.
+let activeGeoWatchId = null; // global guard: only one navigator.geolocation.watchPosition should ever run at a time
+
 function saveCurrentLocationForHole(pointType){
   const btn = document.getElementById('geo-btn-'+pointType);
   const status = document.getElementById('geo-status');
@@ -1355,11 +1432,18 @@ function saveCurrentLocationForHole(pointType){
     status.textContent = '이 브라우저는 위치 정보를 지원하지 않아요';
     return;
   }
+  // Defensively clear any watch left running from a previous request — overlapping
+  // watchPosition calls can make iOS throttle/downgrade accuracy on the newer one.
+  if(activeGeoWatchId !== null){
+    navigator.geolocation.clearWatch(activeGeoWatchId);
+    activeGeoWatchId = null;
+  }
   const originalHTML = btn.innerHTML;
   btn.disabled = true;
 
-  const GOOD_ENOUGH_ACCURACY = 6;   // meters — stop early if we get a fix this good
-  const MAX_WAIT_MS = 9000;         // otherwise sample for up to ~9 seconds
+  const GOOD_ENOUGH_ACCURACY = 6;    // meters — stop early if we get a fix this good
+  const ACCEPTABLE_ACCURACY = 15;    // meters — below this we consider the fix trustworthy
+  const MAX_WAIT_MS = 18000;         // otherwise sample for up to ~18 seconds (2nd shot / green need more settle time than tee)
   let best = null;
   let watchId = null;
   let finished = false;
@@ -1367,7 +1451,7 @@ function saveCurrentLocationForHole(pointType){
   function finish(){
     if(finished) return;
     finished = true;
-    if(watchId !== null) navigator.geolocation.clearWatch(watchId);
+    if(watchId !== null){ navigator.geolocation.clearWatch(watchId); if(activeGeoWatchId === watchId) activeGeoWatchId = null; }
     btn.disabled = false;
     btn.innerHTML = originalHTML;
 
@@ -1395,7 +1479,7 @@ function saveCurrentLocationForHole(pointType){
       if(finished) return;
       if(!best){
         finished = true;
-        if(watchId !== null) navigator.geolocation.clearWatch(watchId);
+        if(watchId !== null){ navigator.geolocation.clearWatch(watchId); if(activeGeoWatchId === watchId) activeGeoWatchId = null; }
         btn.disabled = false;
         btn.innerHTML = originalHTML;
         status.textContent = err.code === 1 ? '위치 접근이 거부됐어요 (설정에서 허용해주세요)' : '위치를 가져오지 못했어요';
@@ -1404,6 +1488,7 @@ function saveCurrentLocationForHole(pointType){
     },
     { enableHighAccuracy: true, timeout: MAX_WAIT_MS, maximumAge: 0 }
   );
+  activeGeoWatchId = watchId;
 
   setTimeout(finish, MAX_WAIT_MS);
 }
@@ -1424,8 +1509,13 @@ async function saveResolvedPoint(pointType, pos){
 
   showHole(activeHole);
   const status = document.getElementById('geo-status');
-  status.textContent = `${GEO_LABELS[pointType]} 위치 저장됨 ✅ (정확도 ±${Math.round(pos.coords.accuracy)}m)`;
-  setTimeout(()=>{ if(status.textContent.includes('저장됨')) status.textContent = ''; }, 2500);
+  const acc = Math.round(pos.coords.accuracy);
+  if(acc > 15){
+    status.innerHTML = `${GEO_LABELS[pointType]} 저장됨, 그런데 정확도가 낮아요 (±${acc}m) — <span style="text-decoration:underline; cursor:pointer;" onclick="saveCurrentLocationForHole('${pointType}')">다시 찍기</span>`;
+  } else {
+    status.textContent = `${GEO_LABELS[pointType]} 위치 저장됨 ✅ (정확도 ±${acc}m)`;
+    setTimeout(()=>{ if(status.textContent.includes('저장됨')) status.textContent = ''; }, 2500);
+  }
 }
 
 function changeScore(delta){
