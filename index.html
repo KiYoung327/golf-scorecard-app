@@ -1448,55 +1448,68 @@ function saveCurrentLocationForHole(pointType){
   btn.disabled = true;
 
   const GOOD_ENOUGH_ACCURACY = 6;    // meters — stop early if we get a fix this good
-  const ACCEPTABLE_ACCURACY = 15;    // meters — below this we consider the fix trustworthy
-  const MAX_WAIT_MS = 18000;         // otherwise sample for up to ~18 seconds (2nd shot / green need more settle time than tee)
-  let best = null;
-  let watchId = null;
-  let finished = false;
-
-  function finish(){
-    if(finished) return;
-    finished = true;
-    if(watchId !== null){ navigator.geolocation.clearWatch(watchId); if(activeGeoWatchId === watchId) activeGeoWatchId = null; }
-    btn.disabled = false;
-    btn.innerHTML = originalHTML;
-
-    if(!best){
-      status.textContent = '위치를 가져오지 못했어요. GPS 신호가 좋은 곳(하늘이 트인 곳)에서 다시 시도해주세요';
-      setTimeout(()=>{ status.textContent = ''; }, 3000);
-      return;
-    }
-    saveResolvedPoint(pointType, best);
-  }
+  const BURST_MS = 4000;             // restart tracking every ~4s instead of one long watch —
+                                      // iOS seems to quietly downgrade accuracy on a watch that's
+                                      // been running a while, but treats each fresh start like the
+                                      // (reliably accurate) very first request of a session
+  const MAX_WAIT_MS = 18000;         // total time budget across all bursts
+  const startedAt = Date.now();
+  let overallBest = null;
+  let permissionDenied = false;
 
   status.textContent = `${GEO_LABELS[pointType]} 위치 확인 중...`;
   btn.textContent = '측정 중...';
 
-  watchId = navigator.geolocation.watchPosition(
-    (pos)=>{
-      if(finished) return;
-      if(!best || pos.coords.accuracy < best.coords.accuracy){
-        best = pos;
-        status.textContent = `${GEO_LABELS[pointType]} 위치 확인 중... (정확도 ±${Math.round(pos.coords.accuracy)}m)`;
+  function sampleBurst(durationMs){
+    return new Promise((resolve)=>{
+      let best = null;
+      let done = false;
+      const id = navigator.geolocation.watchPosition(
+        (pos)=>{
+          if(done) return;
+          if(!best || pos.coords.accuracy < best.coords.accuracy) best = pos;
+          if(pos.coords.accuracy <= GOOD_ENOUGH_ACCURACY) finishBurst();
+        },
+        (err)=>{
+          if(err.code === 1) permissionDenied = true; // permission denied — no point retrying further bursts
+        },
+        { enableHighAccuracy: true, timeout: durationMs, maximumAge: 0 }
+      );
+      activeGeoWatchId = id;
+      function finishBurst(){
+        if(done) return;
+        done = true;
+        navigator.geolocation.clearWatch(id);
+        if(activeGeoWatchId === id) activeGeoWatchId = null;
+        resolve(best);
       }
-      if(pos.coords.accuracy <= GOOD_ENOUGH_ACCURACY) finish();
-    },
-    (err)=>{
-      if(finished) return;
-      if(!best){
-        finished = true;
-        if(watchId !== null){ navigator.geolocation.clearWatch(watchId); if(activeGeoWatchId === watchId) activeGeoWatchId = null; }
-        btn.disabled = false;
-        btn.innerHTML = originalHTML;
-        status.textContent = err.code === 1 ? '위치 접근이 거부됐어요 (설정에서 허용해주세요)' : '위치를 가져오지 못했어요';
-        setTimeout(()=>{ status.textContent = ''; }, 3000);
-      }
-    },
-    { enableHighAccuracy: true, timeout: MAX_WAIT_MS, maximumAge: 0 }
-  );
-  activeGeoWatchId = watchId;
+      setTimeout(finishBurst, durationMs);
+    });
+  }
 
-  setTimeout(finish, MAX_WAIT_MS);
+  (async ()=>{
+    while(Date.now() - startedAt < MAX_WAIT_MS && !permissionDenied){
+      const remaining = MAX_WAIT_MS - (Date.now() - startedAt);
+      const thisBurst = await sampleBurst(Math.min(BURST_MS, remaining));
+      if(thisBurst && (!overallBest || thisBurst.coords.accuracy < overallBest.coords.accuracy)){
+        overallBest = thisBurst;
+        status.textContent = `${GEO_LABELS[pointType]} 위치 확인 중... (정확도 ±${Math.round(overallBest.coords.accuracy)}m)`;
+      }
+      if(overallBest && overallBest.coords.accuracy <= GOOD_ENOUGH_ACCURACY) break;
+    }
+
+    btn.disabled = false;
+    btn.innerHTML = originalHTML;
+
+    if(!overallBest){
+      status.textContent = permissionDenied
+        ? '위치 접근이 거부됐어요 (설정에서 허용해주세요)'
+        : '위치를 가져오지 못했어요. GPS 신호가 좋은 곳(하늘이 트인 곳)에서 다시 시도해주세요';
+      setTimeout(()=>{ status.textContent = ''; }, 3000);
+      return;
+    }
+    saveResolvedPoint(pointType, overallBest);
+  })();
 }
 
 async function saveResolvedPoint(pointType, pos){
