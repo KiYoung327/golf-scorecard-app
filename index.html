@@ -492,7 +492,7 @@
           <div class="eyebrow" id="play-course-name">코스</div>
           <h1>라운드</h1>
         </div>
-        <button class="icon-btn" onclick="goto('home')">✕</button>
+        <button class="icon-btn" onclick="leaveRound()">✕</button>
       </div>
     </div>
     <div class="hole-strip" id="hole-strip"></div>
@@ -617,7 +617,7 @@
     <div id="sc-tables"></div>
     <div style="padding:0 16px 16px;">
       <button class="btn btn-primary" style="width:100%; margin-bottom:10px; border-radius:8px;" id="sc-save-btn" onclick="saveCurrentRound()">💾 스코어 저장</button>
-      <button class="btn btn-ghost" style="width:100%; border-radius:8px;" onclick="goto('home')">홈으로</button>
+      <button class="btn btn-ghost" style="width:100%; border-radius:8px;" onclick="leaveRound()">홈으로</button>
     </div>
   </section>
 
@@ -1203,6 +1203,7 @@ function beginRoundWithHoles(course, subCoursesChosen){
   renderHoleStrip();
   showHole(1);
   goto('play');
+  startRoundLocationTracking();
 }
 
 function renderHoleStrip(){
@@ -1350,11 +1351,38 @@ function updateScoreDisplay(){
 
 /* ---------------- Save current GPS location as a hole's tee/second/green point ---------------- */
 const GEO_LABELS = { tee:'티샷', second:'세컨샷', green:'그린' };
-// Collects GPS fixes for a few seconds and keeps the most accurate one,
-// instead of trusting whatever single fix arrives first. iOS often returns
-// a fast, low-accuracy fix immediately after moving before it fully re-locks;
-// sampling for a short window fixes that without a big wait for the user.
-let activeGeoWatchId = null; // global guard: only one navigator.geolocation.watchPosition should ever run at a time
+// ---------------- Continuous round-long GPS tracking ----------------
+// Starting a fresh watchPosition every time a button is pressed means the
+// location subsystem gets repeatedly stopped and restarted throughout a round.
+// On iOS Safari that seems to make later requests noticeably less accurate than
+// the very first one. So instead: start ONE watchPosition when the round begins
+// and never stop it until the round is left — every button press just reads the
+// most accurate fix seen recently from that single ongoing stream.
+let roundWatchId = null;
+let recentGeoFixes = []; // [{pos, t}], trimmed to the last ~20s
+let geoPermissionDenied = false;
+
+function startRoundLocationTracking(){
+  if(!navigator.geolocation || roundWatchId !== null) return;
+  geoPermissionDenied = false;
+  roundWatchId = navigator.geolocation.watchPosition(
+    (pos)=>{
+      const now = Date.now();
+      recentGeoFixes.push({ pos, t: now });
+      recentGeoFixes = recentGeoFixes.filter(f => now - f.t < 20000);
+    },
+    (err)=>{ if(err.code === 1) geoPermissionDenied = true; },
+    { enableHighAccuracy: true, maximumAge: 0, timeout: 30000 }
+  );
+}
+function stopRoundLocationTracking(){
+  if(roundWatchId !== null){ navigator.geolocation.clearWatch(roundWatchId); roundWatchId = null; }
+  recentGeoFixes = [];
+}
+function leaveRound(){
+  stopRoundLocationTracking();
+  goto('home');
+}
 
 function saveCurrentLocationForHole(pointType){
   const btn = document.getElementById('geo-btn-'+pointType);
@@ -1363,64 +1391,40 @@ function saveCurrentLocationForHole(pointType){
     status.textContent = '이 브라우저는 위치 정보를 지원하지 않아요';
     return;
   }
-  // Defensively clear any watch left running from a previous request — overlapping
-  // watchPosition calls can make iOS throttle/downgrade accuracy on the newer one.
-  if(activeGeoWatchId !== null){
-    navigator.geolocation.clearWatch(activeGeoWatchId);
-    activeGeoWatchId = null;
-  }
+  startRoundLocationTracking(); // in case it isn't already running (e.g. resumed round)
+
   const originalHTML = btn.innerHTML;
   btn.disabled = true;
-
-  const GOOD_ENOUGH_ACCURACY = 6;    // meters — stop early if we get a fix this good
-  const MAX_WAIT_MS = 18000;         // otherwise keep watching for up to ~18 seconds and take the best fix seen
-  let best = null;
-  let watchId = null;
-  let finished = false;
-
-  function finish(){
-    if(finished) return;
-    finished = true;
-    if(watchId !== null){ navigator.geolocation.clearWatch(watchId); if(activeGeoWatchId === watchId) activeGeoWatchId = null; }
-    btn.disabled = false;
-    btn.innerHTML = originalHTML;
-
-    if(!best){
-      status.textContent = '위치를 가져오지 못했어요. GPS 신호가 좋은 곳(하늘이 트인 곳)에서 다시 시도해주세요';
-      setTimeout(()=>{ status.textContent = ''; }, 3000);
-      return;
-    }
-    saveResolvedPoint(pointType, best);
-  }
-
   status.textContent = `${GEO_LABELS[pointType]} 위치 확인 중...`;
   btn.textContent = '측정 중...';
 
-  watchId = navigator.geolocation.watchPosition(
-    (pos)=>{
-      if(finished) return;
-      if(!best || pos.coords.accuracy < best.coords.accuracy){
-        best = pos;
-        status.textContent = `${GEO_LABELS[pointType]} 위치 확인 중... (정확도 ±${Math.round(pos.coords.accuracy)}m)`;
-      }
-      if(pos.coords.accuracy <= GOOD_ENOUGH_ACCURACY) finish();
-    },
-    (err)=>{
-      if(finished) return;
-      if(!best){
-        finished = true;
-        if(watchId !== null){ navigator.geolocation.clearWatch(watchId); if(activeGeoWatchId === watchId) activeGeoWatchId = null; }
-        btn.disabled = false;
-        btn.innerHTML = originalHTML;
-        status.textContent = err.code === 1 ? '위치 접근이 거부됐어요 (설정에서 허용해주세요)' : '위치를 가져오지 못했어요';
-        setTimeout(()=>{ status.textContent = ''; }, 3000);
-      }
-    },
-    { enableHighAccuracy: true, timeout: MAX_WAIT_MS, maximumAge: 0 }
-  );
-  activeGeoWatchId = watchId;
+  const GOOD_ENOUGH_ACCURACY = 6;  // meters — stop early if a fix this good shows up
+  const MAX_WAIT_MS = 10000;       // the stream is already warmed up, so this only needs to catch a fresh sample or two
+  const pressedAt = Date.now();
 
-  setTimeout(finish, MAX_WAIT_MS);
+  const timer = setInterval(()=>{
+    const freshFixes = recentGeoFixes.filter(f => f.t >= pressedAt);
+    const pool = freshFixes.length > 0 ? freshFixes : recentGeoFixes; // fall back to whatever's recent if nothing arrived yet
+    let best = null;
+    pool.forEach(f => { if(!best || f.pos.coords.accuracy < best.coords.accuracy) best = f.pos; });
+    if(best) status.textContent = `${GEO_LABELS[pointType]} 위치 확인 중... (정확도 ±${Math.round(best.coords.accuracy)}m)`;
+
+    const timedOut = Date.now() - pressedAt >= MAX_WAIT_MS;
+    const goodEnough = best && best.coords.accuracy <= GOOD_ENOUGH_ACCURACY;
+    if(goodEnough || timedOut){
+      clearInterval(timer);
+      btn.disabled = false;
+      btn.innerHTML = originalHTML;
+      if(!best){
+        status.textContent = geoPermissionDenied
+          ? '위치 접근이 거부됐어요 (설정에서 허용해주세요)'
+          : '위치를 가져오지 못했어요. GPS 신호가 좋은 곳(하늘이 트인 곳)에서 다시 시도해주세요';
+        setTimeout(()=>{ status.textContent = ''; }, 3000);
+        return;
+      }
+      saveResolvedPoint(pointType, best);
+    }
+  }, 500);
 }
 
 async function saveResolvedPoint(pointType, pos){
