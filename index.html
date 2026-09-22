@@ -1371,7 +1371,7 @@ let geoPermissionDenied = false;
 function startRoundLocationTracking(){
   if(!navigator.geolocation || roundWatchId !== null) return;
   geoPermissionDenied = false;
-  const MAX_ACCEPTABLE_ACCURACY_M = 50; // reject wildly inaccurate fixes right at intake instead of ever buffering them
+  const MAX_ACCEPTABLE_ACCURACY_M = 15; // only trust fixes this precise — reject anything noisier right at intake
   roundWatchId = navigator.geolocation.watchPosition(
     (pos)=>{
       if(pos.coords.accuracy > MAX_ACCEPTABLE_ACCURACY_M) return; // too noisy to be useful — discard, don't buffer
@@ -1380,7 +1380,7 @@ function startRoundLocationTracking(){
       recentGeoFixes = recentGeoFixes.filter(f => now - f.t < 20000);
     },
     (err)=>{ if(err.code === 1) geoPermissionDenied = true; },
-    { enableHighAccuracy: true, maximumAge: 0, timeout: 30000 }
+    { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 }
   );
 }
 function stopRoundLocationTracking(){
