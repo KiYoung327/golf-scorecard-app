@@ -1357,34 +1357,45 @@ function updateScoreDisplay(){
 
 /* ---------------- Save current GPS location as a hole's tee/second/green point ---------------- */
 const GEO_LABELS = { tee:'티샷', second:'세컨샷', green:'그린' };
-// ---------------- Continuous round-long GPS tracking ----------------
-// Starting a fresh watchPosition every time a button is pressed means the
-// location subsystem gets repeatedly stopped and restarted throughout a round.
-// On iOS Safari that seems to make later requests noticeably less accurate than
-// the very first one. So instead: start ONE watchPosition when the round begins
-// and never stop it until the round is left — every button press just reads the
-// most accurate fix seen recently from that single ongoing stream.
-let roundWatchId = null;
+// ---------------- Continuous round-long GPS tracking (forced polling) ----------------
+// watchPosition lets the browser/OS decide when to deliver updates, which on iOS Safari
+// turned out to be unreliable in practice. Instead: repeatedly call getCurrentPosition
+// on our own timer for as long as the round is active — this forces a brand-new location
+// request every cycle rather than passively waiting on whatever watchPosition hands us.
+let roundPolling = false;
+let pollTimeoutId = null;
 let recentGeoFixes = []; // [{pos, t}], trimmed to the last ~20s
 let geoPermissionDenied = false;
+const GPS_POLL_INTERVAL_MS = 1500;  // gap between the end of one getCurrentPosition call and the start of the next
+const MAX_ACCEPTABLE_ACCURACY_M = 15; // only trust fixes this precise — reject anything noisier right at intake
 
 function startRoundLocationTracking(){
-  if(!navigator.geolocation || roundWatchId !== null) return;
+  if(!navigator.geolocation || roundPolling) return;
+  roundPolling = true;
   geoPermissionDenied = false;
-  const MAX_ACCEPTABLE_ACCURACY_M = 15; // only trust fixes this precise — reject anything noisier right at intake
-  roundWatchId = navigator.geolocation.watchPosition(
+  pollGpsOnce();
+}
+function pollGpsOnce(){
+  if(!roundPolling) return;
+  navigator.geolocation.getCurrentPosition(
     (pos)=>{
-      if(pos.coords.accuracy > MAX_ACCEPTABLE_ACCURACY_M) return; // too noisy to be useful — discard, don't buffer
-      const now = Date.now();
-      recentGeoFixes.push({ pos, t: now });
-      recentGeoFixes = recentGeoFixes.filter(f => now - f.t < 20000);
+      if(pos.coords.accuracy <= MAX_ACCEPTABLE_ACCURACY_M){
+        const now = Date.now();
+        recentGeoFixes.push({ pos, t: now });
+        recentGeoFixes = recentGeoFixes.filter(f => now - f.t < 20000);
+      }
+      if(roundPolling) pollTimeoutId = setTimeout(pollGpsOnce, GPS_POLL_INTERVAL_MS);
     },
-    (err)=>{ if(err.code === 1) geoPermissionDenied = true; },
+    (err)=>{
+      if(err.code === 1) geoPermissionDenied = true;
+      if(roundPolling) pollTimeoutId = setTimeout(pollGpsOnce, GPS_POLL_INTERVAL_MS);
+    },
     { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 }
   );
 }
 function stopRoundLocationTracking(){
-  if(roundWatchId !== null){ navigator.geolocation.clearWatch(roundWatchId); roundWatchId = null; }
+  roundPolling = false;
+  if(pollTimeoutId !== null){ clearTimeout(pollTimeoutId); pollTimeoutId = null; }
   recentGeoFixes = [];
 }
 function leaveRound(){
